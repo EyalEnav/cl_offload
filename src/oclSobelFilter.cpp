@@ -204,13 +204,6 @@ int main(int argc, char** argv)
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     shrLog("clEnqueueMapBuffer (Pointer to Input and Output pinned host buffers)...\n"); 
 
-    fgetc(stdin);
-
-    // Load image data from file to pinned input host buffer
-    ciErrNum = shrLoadPPM4ub("tmp.ppm", (unsigned char **)&uiInput, &uiImageWidth, &uiImageHeight);
-    oclCheckErrorEX(ciErrNum, shrTRUE, pCleanup);
-    shrLog("Load Input Image to Input pinned host buffer...\n"); 
-
     // Read the kernel in from file
     cSourceCL = oclLoadProgSource("SobelFilter.cl", "// My comment\n", &szKernelLength);
     oclCheckErrorEX(cSourceCL != NULL, shrTRUE, pCleanup);
@@ -239,6 +232,14 @@ int main(int argc, char** argv)
         Cleanup(EXIT_FAILURE);
     }
     shrLog("clBuildProgram...\n\n"); 
+
+    fgetc(stdin);
+
+    // Load image data from file to pinned input host buffer
+    ciErrNum = shrLoadPPM4ub("tmp.ppm", (unsigned char **)&uiInput, &uiImageWidth, &uiImageHeight);
+    oclCheckErrorEX(ciErrNum, shrTRUE, pCleanup);
+    shrLog("Load Input Image to Input pinned host buffer...\n"); 
+
 
     // Determine, the size/shape of the image portions for each dev and create the device buffers
     unsigned uiSumHeight = 0;
