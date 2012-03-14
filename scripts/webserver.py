@@ -3,7 +3,6 @@
 import string,cgi,time,urlparse,subprocess
 from os import curdir, sep
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-#import pri
 
 class MyHandler(BaseHTTPRequestHandler):
 
@@ -42,10 +41,9 @@ class MyHandler(BaseHTTPRequestHandler):
                 f_in.close()
                 f_out.close()
 
-                #self.oclSobelFilter.communicate("go")
-                #self.oclSobelFilter.wait()
+                self.oclSobelFilter.communicate("go\n")
 
-                f_in = open("tmp.ppm", "rb")
+                f_in = open("out.ppm", "rb")
                 f_out = open("out.jpg", "wb")
                 subprocess.check_call(["pnmtojpeg"], stdin=f_in, stdout=f_out)
                 f_in.close()
@@ -63,7 +61,7 @@ class MyHandler(BaseHTTPRequestHandler):
 
 def main():
 
-    #MyHandler.oclSobelFilter = subprocess.Popen(["oclSobelFilter"])
+    MyHandler.oclSobelFilter = subprocess.Popen(["./oclSobelFilter"], stdin=subprocess.PIPE)
 
     try:
         server = HTTPServer(('', 8080), MyHandler)

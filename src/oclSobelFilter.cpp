@@ -197,11 +197,13 @@ int main(int argc, char** argv)
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     shrLog("\nclCreateBuffer (Input and Output Pinned Host buffers)...\n"); 
 
+    shrLog("DEBUG\n");
+
     // Get mapped pointers for writing to pinned input and output host image pointers 
     uiInput = (cl_uint*)clEnqueueMapBuffer(cqCommandQueue[0], cmPinnedBufIn, CL_TRUE, CL_MAP_WRITE, 0, szBuffBytes, 0, NULL, NULL, &ciErrNum);
-    oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
+    //oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     uiOutput = (cl_uint*)clEnqueueMapBuffer(cqCommandQueue[0], cmPinnedBufOut, CL_TRUE, CL_MAP_READ, 0, szBuffBytes, 0, NULL, NULL, &ciErrNum);
-    oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
+    //oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     shrLog("clEnqueueMapBuffer (Pointer to Input and Output pinned host buffers)...\n"); 
 
     // Read the kernel in from file

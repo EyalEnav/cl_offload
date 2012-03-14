@@ -1,0 +1,17 @@
+
+AMI Name : Cluster Instances Amazon Linux AMI 2011.09
+
+Make sure you select GPU compute node in the third screen
+
+$  ssh -i <key> ec2-user@<public-dns>
+
+exit and copy files to directory
+
+$ scp -i <key> oclSobelFilter SobelFilter.cl webserver.py ec2-user@<host-address>:.
+
+$ sudo yum update
+
+$ sudo yum install nvidia nvidia-gpu-sdk netpbm-progs
+
+$ sudo reboot
+
