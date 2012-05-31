@@ -17,6 +17,7 @@ int main()
 
     cl_device_id device;
     clGetDeviceIDs( platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL );
+    //clGetDeviceIDs( platform, CL_DEVICE_TYPE_CPU, 1, &device, NULL );
 
     cl_context context = clCreateContext( NULL, 1, &device, NULL, NULL, NULL );
     cl_command_queue queue = clCreateCommandQueue( context, device, 0, NULL );
