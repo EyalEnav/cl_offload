@@ -41,18 +41,25 @@ int main()
                                     NWITEMS * sizeof(cl_uint), NULL, NULL );
     printf("buffer %p\n", buffer);
 
+    cl_int result = -1;
+
     size_t global_work_size = NWITEMS;
-    clSetKernelArg( kernel, 0, sizeof(buffer), (void *) &buffer);
+    result = clSetKernelArg( kernel, 0, sizeof(buffer), (void *) &buffer);
 
-    clEnqueueNDRangeKernel( queue, kernel, 1, NULL, &global_work_size, NULL,
+    printf("debug1 %d\n", result);
+
+    result = clEnqueueNDRangeKernel( queue, kernel, 1, NULL, &global_work_size, NULL,
                             0, NULL, NULL );
-    clFinish( queue );
+    printf("debug2 %d\n", result);
+    result = clFinish( queue );
 
+    printf("debug3 %d\n", result);
     cl_uint *ptr;
     ptr = (cl_uint *) clEnqueueMapBuffer( queue, buffer, CL_TRUE, CL_MAP_READ,
                                           0, NWITEMS * sizeof(cl_uint), 0,
                                           NULL, NULL, NULL );
 
+    printf("debug4 %d\n", *ptr);
     int i;
     for (i = 0; i < NWITEMS; i++) {
         printf("%d %d\n", i, ptr[i]);

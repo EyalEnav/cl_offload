@@ -1,4 +1,3 @@
-
 #include <CL/cl.h>
 
 int init_rpc();
@@ -56,7 +55,6 @@ cl_int clSetKernelArg (cl_kernel kernel,
                        size_t arg_size,
                        const void *arg_value);
 
-
 cl_int clEnqueueNDRangeKernel (cl_command_queue command_queue,
                                cl_kernel kernel,
                                cl_uint work_dim,
@@ -80,3 +78,32 @@ void * clEnqueueMapBuffer (cl_command_queue command_queue,
                            cl_event *event,
                            cl_int *errcode_ret);
 
+cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
+							cl_mem buffer,
+							cl_bool blocking_read,
+							size_t offset,
+							size_t cb,
+							void *ptr,
+							cl_uint num_events_in_wait_list,
+							const cl_event *event_wait_list,
+							cl_event *event);
+
+cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
+							 cl_mem buffer,
+							 cl_bool blocking_write,
+							 size_t offset,
+							 size_t cb,
+							 const void *ptr,
+							 cl_uint num_events_in_wait_list,
+							 const cl_event *event_wait_list,
+							 cl_event *event);
+
+cl_int clReleaseMemObject (cl_mem memobj);
+
+cl_int clReleaseProgram (cl_program program);
+
+cl_int clReleaseKernel (cl_kernel kernel);
+
+cl_int clReleaseCommandQueue (cl_command_queue command_queue);
+
+cl_int clReleaseContext (cl_context context);

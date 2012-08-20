@@ -132,6 +132,40 @@ struct enq_ndr_kern_t {
 };
 typedef struct enq_ndr_kern_t enq_ndr_kern_t;
 
+struct enq_read_buf_t {
+	quad_t command_queue;
+	quad_t buffer;
+	int blocking_read;
+	int offset;
+	int cb;
+	struct {
+		u_int ptr_len;
+		char *ptr_val;
+	} ptr;
+	quad_t num_events_in_wait_list;
+	quad_t event_wait_list;
+	quad_t event;
+	int result;
+};
+typedef struct enq_read_buf_t enq_read_buf_t;
+
+struct enq_write_buf_t {
+	quad_t command_queue;
+	quad_t buffer;
+	int blocking_write;
+	int offset;
+	int cb;
+	struct {
+		u_int ptr_len;
+		char *ptr_val;
+	} ptr;
+	quad_t num_events_in_wait_list;
+	quad_t event_wait_list;
+	quad_t event;
+	int result;
+};
+typedef struct enq_write_buf_t enq_write_buf_t;
+
 struct finish_t {
 	quad_t command_queue;
 	int result;
@@ -148,13 +182,43 @@ struct enq_map_buf_t {
 	int num_events_in_wait_list;
 	quad_t event_wait_list;
 	quad_t event;
-	quad_t errcode_ret;
+	quad_t errorcode_ret;
 	struct {
 		u_int buf_len;
 		char *buf_val;
 	} buf;
 };
 typedef struct enq_map_buf_t enq_map_buf_t;
+
+struct release_mem_t {
+	quad_t buffer;
+	int result;
+};
+typedef struct release_mem_t release_mem_t;
+
+struct release_prog_t {
+	quad_t prog;
+	int result;
+};
+typedef struct release_prog_t release_prog_t;
+
+struct release_kern_t {
+	quad_t kernel;
+	int result;
+};
+typedef struct release_kern_t release_kern_t;
+
+struct release_cqueue_t {
+	quad_t command_queue;
+	int result;
+};
+typedef struct release_cqueue_t release_cqueue_t;
+
+struct release_ctx_t {
+	quad_t context;
+	int result;
+};
+typedef struct release_ctx_t release_ctx_t;
 
 #define OCL_PROG 0x23451111
 #define OCL_VERS 1
@@ -199,6 +263,27 @@ extern  finish_t * finish_1_svc(finish_t *, struct svc_req *);
 #define ENQ_MAP_BUF 13
 extern  enq_map_buf_t * enq_map_buf_1(enq_map_buf_t *, CLIENT *);
 extern  enq_map_buf_t * enq_map_buf_1_svc(enq_map_buf_t *, struct svc_req *);
+#define ENQ_READ_BUF 14
+extern  enq_read_buf_t * enq_read_buf_1(enq_read_buf_t *, CLIENT *);
+extern  enq_read_buf_t * enq_read_buf_1_svc(enq_read_buf_t *, struct svc_req *);
+#define ENQ_WRITE_BUF 15
+extern  enq_write_buf_t * enq_write_buf_1(enq_write_buf_t *, CLIENT *);
+extern  enq_write_buf_t * enq_write_buf_1_svc(enq_write_buf_t *, struct svc_req *);
+#define RELEASE_MEM 16
+extern  release_mem_t * release_mem_1(release_mem_t *, CLIENT *);
+extern  release_mem_t * release_mem_1_svc(release_mem_t *, struct svc_req *);
+#define RELEASE_PROG 17
+extern  release_prog_t * release_prog_1(release_prog_t *, CLIENT *);
+extern  release_prog_t * release_prog_1_svc(release_prog_t *, struct svc_req *);
+#define RELEASE_KERN 18
+extern  release_kern_t * release_kern_1(release_kern_t *, CLIENT *);
+extern  release_kern_t * release_kern_1_svc(release_kern_t *, struct svc_req *);
+#define RELEASE_CQUEUE 19
+extern  release_cqueue_t * release_cqueue_1(release_cqueue_t *, CLIENT *);
+extern  release_cqueue_t * release_cqueue_1_svc(release_cqueue_t *, struct svc_req *);
+#define RELEASE_CTX 20
+extern  release_ctx_t * release_ctx_1(release_ctx_t *, CLIENT *);
+extern  release_ctx_t * release_ctx_1_svc(release_ctx_t *, struct svc_req *);
 extern int ocl_prog_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
@@ -241,6 +326,27 @@ extern  finish_t * finish_1_svc();
 #define ENQ_MAP_BUF 13
 extern  enq_map_buf_t * enq_map_buf_1();
 extern  enq_map_buf_t * enq_map_buf_1_svc();
+#define ENQ_READ_BUF 14
+extern  enq_read_buf_t * enq_read_buf_1();
+extern  enq_read_buf_t * enq_read_buf_1_svc();
+#define ENQ_WRITE_BUF 15
+extern  enq_write_buf_t * enq_write_buf_1();
+extern  enq_write_buf_t * enq_write_buf_1_svc();
+#define RELEASE_MEM 16
+extern  release_mem_t * release_mem_1();
+extern  release_mem_t * release_mem_1_svc();
+#define RELEASE_PROG 17
+extern  release_prog_t * release_prog_1();
+extern  release_prog_t * release_prog_1_svc();
+#define RELEASE_KERN 18
+extern  release_kern_t * release_kern_1();
+extern  release_kern_t * release_kern_1_svc();
+#define RELEASE_CQUEUE 19
+extern  release_cqueue_t * release_cqueue_1();
+extern  release_cqueue_t * release_cqueue_1_svc();
+#define RELEASE_CTX 20
+extern  release_ctx_t * release_ctx_1();
+extern  release_ctx_t * release_ctx_1_svc();
 extern int ocl_prog_1_freeresult ();
 #endif /* K&R C */
 
@@ -258,8 +364,15 @@ extern  bool_t xdr_create_kern_t (XDR *, create_kern_t*);
 extern  bool_t xdr_create_buf_t (XDR *, create_buf_t*);
 extern  bool_t xdr_set_kern_arg_t (XDR *, set_kern_arg_t*);
 extern  bool_t xdr_enq_ndr_kern_t (XDR *, enq_ndr_kern_t*);
+extern  bool_t xdr_enq_read_buf_t (XDR *, enq_read_buf_t*);
+extern  bool_t xdr_enq_write_buf_t (XDR *, enq_write_buf_t*);
 extern  bool_t xdr_finish_t (XDR *, finish_t*);
 extern  bool_t xdr_enq_map_buf_t (XDR *, enq_map_buf_t*);
+extern  bool_t xdr_release_mem_t (XDR *, release_mem_t*);
+extern  bool_t xdr_release_prog_t (XDR *, release_prog_t*);
+extern  bool_t xdr_release_kern_t (XDR *, release_kern_t*);
+extern  bool_t xdr_release_cqueue_t (XDR *, release_cqueue_t*);
+extern  bool_t xdr_release_ctx_t (XDR *, release_ctx_t*);
 
 #else /* K&R C */
 extern bool_t xdr_plat_id_t ();
@@ -273,8 +386,15 @@ extern bool_t xdr_create_kern_t ();
 extern bool_t xdr_create_buf_t ();
 extern bool_t xdr_set_kern_arg_t ();
 extern bool_t xdr_enq_ndr_kern_t ();
+extern bool_t xdr_enq_read_buf_t ();
+extern bool_t xdr_enq_write_buf_t ();
 extern bool_t xdr_finish_t ();
 extern bool_t xdr_enq_map_buf_t ();
+extern bool_t xdr_release_mem_t ();
+extern bool_t xdr_release_prog_t ();
+extern bool_t xdr_release_kern_t ();
+extern bool_t xdr_release_cqueue_t ();
+extern bool_t xdr_release_ctx_t ();
 
 #endif /* K&R C */
 
