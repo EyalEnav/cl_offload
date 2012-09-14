@@ -1,6 +1,6 @@
 
 #include <stdio.h>
-#include "ocl_rpc_clnt.h"
+//#include "ocl_rpc_clnt.h"
 #include <CL/cl.h>
 
 #define NWITEMS 512
@@ -13,7 +13,7 @@ const char *source =
 
 int main()
 {
-    init_rpc();
+    //init_rpc();
 
     cl_platform_id platform;
     clGetPlatformIDs( 1, &platform, NULL );

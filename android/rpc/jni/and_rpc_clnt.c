@@ -14,7 +14,23 @@
 #define MCAST_ADDR "239.192.1.100"
 
 #define GET_PLAT_ID 1
-#define GET_DEV_ID 2
+#define GET_PLAT_INFO 2
+#define GET_DEV_ID 3
+#define CREATE_CTX 4
+#define CREATE_CQUEUE 5
+#define CREATE_PROG_WS 6
+#define BUILD_PROG 7
+#define CREATE_KERN 8
+#define CREATE_BUF 9
+#define SET_KERN_ARG 10
+#define ENQ_NDR_KERN 11
+#define FINISH 12
+#define ENQ_MAP_BUF 13
+#define ENQ_READ_BUF 14
+#define ENQ_WRITE_BUF 15
+#define RELEASE_MEM 16
+#define RELEASE_PROG 17
+#define RELEASE_KERN 18
 
 int tcp_sock = -1;
 char _buf[1024];
@@ -216,6 +232,27 @@ tpl_deserialize(tpl_node *stn, tpl_node *rtn)
     return 0;
 }
 
+static int
+tpl_deserialize_array(tpl_node *stn, tpl_node *rtn)
+{
+    if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + 4, 
+        sizeof(_buf) -4) < 0) {
+        fprintf(stderr, "load failed\n");
+        tpl_free(stn);
+        tpl_free(rtn);
+        return -1;
+    }
+
+    int count = 0;
+    while (tpl_unpack(rtn, 1) > 0) count++;
+    printf("unpacked %d\n", count);
+
+    //tpl_free(stn);
+    //tpl_free(rtn);
+
+    return 0;
+}
+
 cl_int clGetPlatformIDs (cl_uint num_entries,
                          cl_platform_id *platforms,
                          cl_uint *num_platforms)
@@ -372,7 +409,7 @@ cl_mem clCreateBuffer (cl_context context,
                       cl_int *errcode_ret)
 {
     cl_mem buffer;
-    _buf[0] = CREATE_KERN;
+    _buf[0] = CREATE_BUF;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("Iii", &context, &flags, &size);
@@ -397,7 +434,7 @@ cl_int clSetKernelArg (cl_kernel kernel,
     _buf[0] = SET_KERN_ARG;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("Iic#", &kernel, &arg_index, arg_value, arg_size);
+    stn = tpl_map("IiiI", &kernel, &arg_index, &arg_size, arg_value);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -457,17 +494,33 @@ void * clEnqueueMapBuffer (cl_command_queue command_queue,
                            cl_event *event,
                            cl_int *errcode_ret)
 {
-    void *buf = malloc(cb);
-    _buf[0] = FINISH;
+    static char buf[1024];
+    char c;
+    _buf[0] = ENQ_MAP_BUF;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIiiiii", &command_queue, &buffer, &blocking_map, 
         &map_flags, &offset, &cb, &num_events_in_wait_list);
-    rtn = tpl_map("c#", &result);
+    rtn = tpl_map("A(c)", &c);
 
     tpl_rpc_call(stn, rtn);
-    tpl_deserialize(stn, rtn);
 
+    if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + 4, 
+        sizeof(_buf) -4) < 0) {
+        fprintf(stderr, "load failed\n");
+        tpl_free(stn);
+        tpl_free(rtn);
+        return NULL;
+    }
+
+    int i = 0;
+    while (tpl_unpack(rtn, 1) > 0) {
+        buf[i] = c;
+        i++;
+    }
+
+    tpl_free(stn);
+    tpl_free(rtn);
 
 
     return buf;

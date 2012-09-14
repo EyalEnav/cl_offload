@@ -250,9 +250,10 @@ main (int argc, char **argv)
     opts.tcp_port = 51234;
     opts.sock = create_mcast_sock(NULL, opts.udp_port);
 
-    pthread_t mcast_thread, tcp_thread;
-    pthread_create(&mcast_thread, NULL, start_mcast_thread, &opts);
-    pthread_create(&tcp_thread, NULL, start_tcp_thread, &opts);
+    //pthread_t mcast_thread, tcp_thread;
+    //pthread_create(&mcast_thread, NULL, start_mcast_thread, &opts);
+    //pthread_create(&tcp_thread, NULL, start_tcp_thread, &opts);
 
-    getchar();
+    //getchar();
+    start_tcp_thread(&opts);
 }
