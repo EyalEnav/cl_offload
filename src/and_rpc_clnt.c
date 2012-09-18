@@ -205,14 +205,31 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
 
     tpl_dump(stn, TPL_MEM|TPL_PREALLOCD, sbuf + 4, sz);
 
-    if ((nsend = send(tcp_sock, sbuf, sz, 0)) < 1) {
-        fprintf(stderr, "send failed\n");
-        tpl_free(stn);
-        close(tcp_sock);
-        return -1;
-    }
+    int idx = sz, i = 0;
+    while (1) {
+        if (idx > 1024) {
+            if ((nsend = send(tcp_sock, sbuf + i, 1024, 0)) < 1) {
+                fprintf(stderr, "send failed\n");
+                tpl_free(stn);
+                close(tcp_sock);
+                return -1;
+            }
+            idx -= nsend;
+            i += nsend;
+            printf("idx %d\n", idx);
+        }
+        if (idx < 1024) {
+            if ((nsend = send(tcp_sock, sbuf + i, idx, 0)) < 1) {
+                fprintf(stderr, "send failed\n");
+                tpl_free(stn);
+                close(tcp_sock);
+                return -1;
+            }
+            printf("nsend %d\n", nsend);
+            break;
+        }
 
-    printf("nsend %d sz %d\n", nsend, sz);
+    }
 
     if ((nread = recv(tcp_sock, _buf, sizeof(_buf), 0)) < 1) {
         fprintf(stderr, "recv failed\n");
@@ -223,14 +240,21 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
 
     printf("nread %d\n", nread);
 
-    if (_buf[1] > 1) {
+    if (_buf[1] > 1 || _buf[1] == -1) {
         fprintf(stderr, "big buffer size %d\n", _buf[1]);
-        int nnread;
-        int buf_size = 1024 * _buf[1];
+        int nnread, buf_size, j;
+        if (_buf[1] == -1) {
+            unsigned short *us = (unsigned short *) _buf + 2;
+            buf_size = 1024 * (*us);
+            j = *us;
+        }
+        else {
+            buf_size = 1024 * _buf[1];
+            j = _buf[1];
+        }
         _big_buf = malloc(buf_size);
         memcpy(_big_buf, _buf, nread);
 
-        int j = _buf[1] - 1;
         int i = 1;
         while ( i < j) {
             if ((nnread = recv(tcp_sock, _buf, 1024, 
@@ -241,7 +265,11 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
             memcpy(_big_buf + (1024 * i), _buf, nnread);
             i++;
             nread += nnread;
-            printf("loop nnread %d i %d _buf[1] %d\n", nnread, i);
+            printf("loop nnread %d i %d\n", nnread, i);
+
+            if (nnread < 1024) {
+                break;
+            }
         }
         printf("nnread %d\n", nnread);
     }
@@ -278,13 +306,12 @@ tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
     if (cb > 1020) {
         fprintf(stderr, "big tpl_load %d\n", cb);
         if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _big_buf + 4, 
-            cb + 1024) < 0) {
+            cb - 4) < 0) {
             fprintf(stderr, "load failed\n");
             tpl_free(stn);
             tpl_free(rtn);
             return 0;
         }
-        free(_big_buf);
     }
     else {
         if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + 4, 
@@ -300,13 +327,16 @@ tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
     int i = 0;
     while (tpl_unpack(rtn, 1) > 0) {
         buf[i] = *c;
-        printf("%d ", buf[i]);
         i++;
     }
+
 
     tpl_free(stn);
     tpl_free(rtn);
 
+    if (cb > 1020) {
+        free(_big_buf);
+    }
 
     return 0;
 }
@@ -606,7 +636,7 @@ void * clEnqueueMapBuffer (cl_command_queue command_queue,
         &map_flags, &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
-    tpl_rpc_call(stn, rtn);
+    cb = tpl_rpc_call(stn, rtn);
     tpl_deserialize_array(stn, rtn, cb, &c, buf);
 
     return buf;
@@ -651,11 +681,19 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
                             cl_event *event)
 {
     printf("doing write buffer %d\n", cb);
+    int no_bufs = cb/1024 + 1;
     const char *buf = ptr;
     char c;
     int result;
     _buf[0] = ENQ_WRITE_BUF;
-    _buf[1] = cb/1024 + 1;
+    if (no_bufs > 127) {
+        _buf[1] = -1;
+        unsigned short *us = (unsigned short *) _buf + 2;
+        *us = no_bufs;
+    }
+    else {
+        _buf[1] = cb/1024 + 1;
+    }
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIiiiiA(c)", &command_queue, &buffer, &blocking_write, 

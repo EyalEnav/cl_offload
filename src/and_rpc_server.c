@@ -178,20 +178,38 @@ handle_client(void *arg)
         printf("nread %d\n", nread);
         tmp_buf = buf;
 
-        if (buf[1] > 1 && buf[1] < 100) {
-            int buf_size = 1024 * buf[1];
-            printf("new buf size %d\n", buf_size);
+        if (buf[1] > 1 || buf[1] == -1) {
+            fprintf(stderr, "big buffer server size %d\n", buf[1]);
+            int nnread, buf_size, j;
+            if (buf[1] == -1) {
+                unsigned short *us = (unsigned short *) buf + 2;
+                buf_size = 1024 * (*us);
+                j = *us;
+            }
+            else {
+                buf_size = 1024 * buf[1];
+                j = buf[1];
+            }
+
             new_buf = malloc(buf_size);
             memcpy(new_buf, buf, nread);
 
-            if ((nnread = recv(sock, new_buf + nread, buf_size - nread, 
-                0)) < 1) {
-                fprintf(stderr, "recv large buffer failed\n");
-                break;
-            }
+            int i = 1;
+            while (i < j) {
+                if ((nnread = recv(sock, buf, 1024, 
+                    0)) < 1) {
+                    fprintf(stderr, "recv large buffer failed\n");
+                    break;
+                }
+                memcpy(new_buf + (1024 * i), buf, nnread);
+                i++;
+                nread += nnread;
+                printf("loop nnread %d i %d\n", nnread, i);
 
-            printf("nnread %d\n", nnread);
-            nread += nnread;
+                if (nnread < 1024) {
+                    break;
+                }
+            }
             buf = new_buf;
             nsend = process_request(&buf, nread, buf_size);
         }
@@ -201,21 +219,22 @@ handle_client(void *arg)
 
         int idx = nsend, i = 0;
         while (1) {
-            if ((nsend = send(sock, buf + idx, 1024, 0)) < 1) {
-                fprintf(stderr, "send failed\n");
+            if (idx > 1024) {
+                if ((nsend = send(sock, buf + i, 1024, 0)) < 1) {
+                    fprintf(stderr, "send failed\n");
+                }
+                idx -= nsend;
+                i += nsend;
+                printf("idx %d\n", idx);
             }
-            printf("sent %d\n", nsend);
-            idx -= nsend;
             if (idx <= 1024) {
                 if ((nsend = send(sock, buf + i, idx, 0)) < 1) {
                     fprintf(stderr, "send failed\n");
                 }
-                printf("sent %d\n", nsend);
+                printf("nsend %d\n", nsend);
                 break;
             }
         }
-
-        printf("nsend %d\n", nsend);
 
         if (tmp_buf != buf) {
             fprintf(stderr, "buf changed, restoring it\n");

@@ -337,7 +337,7 @@ do_enq_map_buf(char **buf, int size)
     int i;
     for (i = 0; i < cb; i++) {
         c = buff[i];
-        tpl_pack(rtn, 1); 
+        tpl_pack(rtn, 1);
     }
 
     tpl_dump(rtn, TPL_GETSIZE, &sz);
@@ -345,7 +345,16 @@ do_enq_map_buf(char **buf, int size)
     if (sz > 1020) {
         tmp_buf = malloc(sz + 4);
         memcpy(tmp_buf, *buf, 4);
-        tmp_buf[1] = cb/1024 + 1;
+        int no_bufs = cb/1024 + 1;
+        if (no_bufs > 127) {
+            tmp_buf[1] = -1;
+            unsigned short *us = (unsigned short *) tmp_buf + 2;
+            *us = no_bufs;
+        }
+        else {
+            tmp_buf[1] = cb/1024 + 1;
+        }
+  
         *buf = tmp_buf;
     }
 
@@ -387,7 +396,6 @@ do_enq_read_buf(char **buf, int size)
     for (i = 0; i < cb; i++) {
         c = buff[i];
         tpl_pack(rtn, 1);
-        printf("%d ", c);
     }
 
     tpl_dump(rtn, TPL_GETSIZE, &sz);
@@ -395,7 +403,16 @@ do_enq_read_buf(char **buf, int size)
     if (sz > 1020) {
         tmp_buf = malloc(sz + 4);
         memcpy(tmp_buf, *buf, 4);
-        tmp_buf[1] = cb/1024 + 2;
+        int no_bufs = cb/1024 + 1;
+        if (no_bufs > 127) {
+            tmp_buf[1] = -1;
+            unsigned short *us = (unsigned short *) tmp_buf + 2;
+            *us = no_bufs;
+        }
+        else {
+            tmp_buf[1] = cb/1024 + 1;
+        }
+  
         *buf = tmp_buf;
     }
 
