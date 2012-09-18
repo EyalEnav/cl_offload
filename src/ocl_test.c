@@ -1,6 +1,6 @@
 
 #include <stdio.h>
-//#include "ocl_rpc_clnt.h"
+#include "and_rpc_clnt.h"
 #include <CL/cl.h>
 
 #define NWITEMS 512
@@ -13,14 +13,14 @@ const char *source =
 
 int main()
 {
-    //init_rpc();
+    init_rpc();
 
     cl_platform_id platform;
     clGetPlatformIDs( 1, &platform, NULL );
     printf("platform %p\n", platform);
 
     cl_device_id device;
-    clGetDeviceIDs( platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL );
+    clGetDeviceIDs( platform, CL_DEVICE_TYPE_CPU, 1, &device, NULL );
     printf("device %p\n", device);
 
     cl_context context = clCreateContext( NULL, 1, &device, NULL, NULL, NULL );
