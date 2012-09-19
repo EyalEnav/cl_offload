@@ -182,9 +182,8 @@ handle_client(void *arg)
             fprintf(stderr, "big buffer server size %d\n", buf[1]);
             int nnread, buf_size, j;
             if (buf[1] == -1) {
-                unsigned short *us = (unsigned short *) buf + 2;
-                buf_size = 1024 * (*us);
-                j = *us;
+                buf_size = 1024 * (buf[2] * 256 + buf[3]);
+                j = buf[2] * 256 + buf[3];
             }
             else {
                 buf_size = 1024 * buf[1];
@@ -194,7 +193,7 @@ handle_client(void *arg)
             new_buf = malloc(buf_size);
             memcpy(new_buf, buf, nread);
 
-            int i = 1;
+            int i = 1, x = 0;
             while (i < j) {
                 if ((nnread = recv(sock, buf, 1024, 
                     0)) < 1) {
@@ -204,11 +203,12 @@ handle_client(void *arg)
                 memcpy(new_buf + (1024 * i), buf, nnread);
                 i++;
                 nread += nnread;
-                printf("loop nnread %d i %d\n", nnread, i);
-
-                if (nnread < 1024) {
-                    break;
+                x += 1024 - nnread;
+                if (x >= 1024) {
+                    i--;
+                    x -= 1024;
                 }
+                printf("loop nnread %d i %d j %d\n", nnread, i, j);
             }
             buf = new_buf;
             nsend = process_request(&buf, nread, buf_size);

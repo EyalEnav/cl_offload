@@ -15,22 +15,11 @@
 
 #define BUFSIZE 1024
 
-typedef struct rpc_state {
-    cl_platform_id platform;
-    cl_device_id device;
-    cl_context context;
-    cl_command_queue queue;
-    cl_program program;
-    cl_kernel kernel;
-    cl_mem buffer;
-} rpc_state_t;
-
-rpc_state_t st;
-
 int tcp_sock = -1;
 char _buf[BUFSIZE];
 char *_big_buf;
 
+typedef long long int int64;
 
 static struct timeval TIMEOUT = { 25, 0 };
 
@@ -244,9 +233,8 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
         fprintf(stderr, "big buffer size %d\n", _buf[1]);
         int nnread, buf_size, j;
         if (_buf[1] == -1) {
-            unsigned short *us = (unsigned short *) _buf + 2;
-            buf_size = 1024 * (*us);
-            j = *us;
+            buf_size = 1024 * (_buf[2] * 256 + _buf[3]);
+            j = _buf[2] * 256 + _buf[3];
         }
         else {
             buf_size = 1024 * _buf[1];
@@ -255,7 +243,7 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
         _big_buf = malloc(buf_size);
         memcpy(_big_buf, _buf, nread);
 
-        int i = 1;
+        int i = 1, x = 0;
         while ( i < j) {
             if ((nnread = recv(tcp_sock, _buf, 1024, 
                 0)) < 1) {
@@ -265,11 +253,12 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
             memcpy(_big_buf + (1024 * i), _buf, nnread);
             i++;
             nread += nnread;
-            printf("loop nnread %d i %d\n", nnread, i);
-
-            if (nnread < 1024) {
-                break;
+            x += 1024 - nnread;
+            if (x >= 1024) {
+                i--;
+                x -= 1024;
             }
+            printf("loop nnread %d i %d j %d\n", nnread, i, j);
         }
         printf("nnread %d\n", nnread);
     }
@@ -351,12 +340,15 @@ cl_int clGetPlatformIDs (cl_uint num_entries,
 {
     printf("doing getplatformid\n");
     int result;
+    int64 *platforms_l = malloc(sizeof(int64));
+    *platforms = platforms_l;
+
     _buf[0] = GET_PLAT_ID;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("i", &num_entries);
-    rtn = tpl_map("iI", &result, platforms);
+    rtn = tpl_map("iI", &result, platforms_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -372,12 +364,14 @@ cl_int clGetDeviceIDs (cl_platform_id platform,
 {
     printf("doing getdeviceid\n");
     int result;
+    int64 *devices_l = malloc(sizeof(int64));
+    *devices = devices_l;
     _buf[0] = GET_DEV_ID;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("Iii", &platform, &device_type, &num_entries);
-    rtn = tpl_map("iI", &result, devices);
+    stn = tpl_map("Iii", platform, &device_type, &num_entries);
+    rtn = tpl_map("iI", &result, devices_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -395,13 +389,13 @@ cl_context clCreateContext (const cl_context_properties *properties,
                             cl_int *errcode_ret)
 {
     printf("doing createcontext\n");
-    cl_context context;
+    int64 *context_l = malloc(sizeof(int64));
     _buf[0] = CREATE_CTX;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("iI", &num_devices, devices);
-    rtn = tpl_map("I", &context);
+    stn = tpl_map("iI", &num_devices, *devices);
+    rtn = tpl_map("I", context_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -410,7 +404,7 @@ cl_context clCreateContext (const cl_context_properties *properties,
         *errcode_ret = CL_SUCCESS;
     }
 
-    return context;
+    return context_l;
 }
 
 cl_command_queue clCreateCommandQueue (cl_context context,
@@ -419,13 +413,13 @@ cl_command_queue clCreateCommandQueue (cl_context context,
                                    cl_int *errcode_ret)
 {
     printf("doing createcommandqueue\n");
-    cl_command_queue queue;
+    int64 *queue_l = malloc(sizeof(int64));
     _buf[0] = CREATE_CQUEUE;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIi", &context, &device, &properties);
-    rtn = tpl_map("I", &queue);
+    stn = tpl_map("IIi", context, device, &properties);
+    rtn = tpl_map("I", queue_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -434,7 +428,9 @@ cl_command_queue clCreateCommandQueue (cl_context context,
         *errcode_ret = CL_SUCCESS;
     }
 
-    return queue;
+    printf("QUEUE_L %p\n", *queue_l);
+
+    return queue_l;
 }
 
 cl_program clCreateProgramWithSource (cl_context context,
@@ -444,15 +440,15 @@ cl_program clCreateProgramWithSource (cl_context context,
                                       cl_int *errcode_ret)
 {
     printf("doing createprogramwithsource\n");
-    cl_program program;
+    int64 *program_l = malloc(sizeof(int64));
     _buf[0] = CREATE_PROG_WS;
     _buf[1] = strlen(*strings)/1024 + 1;
     tpl_node *stn, *rtn;
 
     printf("strlen %d\n", strlen(*strings));
 
-    stn = tpl_map("Iis", &context, &count, strings);
-    rtn = tpl_map("I", &program);
+    stn = tpl_map("Iis", context, &count, strings);
+    rtn = tpl_map("I", program_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -461,7 +457,7 @@ cl_program clCreateProgramWithSource (cl_context context,
         *errcode_ret = CL_SUCCESS;
     }
 
-    return program;
+    return program_l;
 }
 
 cl_int clBuildProgram (cl_program program,
@@ -473,25 +469,23 @@ cl_int clBuildProgram (cl_program program,
                        void *user_data)
 {
     printf("doing build program\n");
-    void *ptr = NULL;
+    int64 *ptr = NULL;
     int result;
     _buf[0] = BUILD_PROG;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
     if (device_list == NULL) {
-        device_list = &ptr;
+        stn = tpl_map("IiI", program, &num_devices, &ptr);
+    }
+    else {
+        stn = tpl_map("IiI", program, &num_devices, *device_list);
     }
 
-    stn = tpl_map("IiI", &program, &num_devices, device_list);
     rtn = tpl_map("i", &result);
 
-    printf("debug1\n");
-
     tpl_rpc_call(stn, rtn);
-    printf("debug2\n");
     tpl_deserialize(stn, rtn);
-    printf("debug3\n");
 
     return result;
 }
@@ -501,13 +495,13 @@ cl_kernel clCreateKernel (cl_program program,
                           cl_int *errcode_ret)
 {
     printf("doing createkernel\n");
-    cl_kernel kernel;
+    int64 *kernel_l = malloc(sizeof(int64));
     _buf[0] = CREATE_KERN;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("Is", &program, &kernel_name);
-    rtn = tpl_map("I", &kernel);
+    stn = tpl_map("Is", program, &kernel_name);
+    rtn = tpl_map("I", kernel_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -516,7 +510,7 @@ cl_kernel clCreateKernel (cl_program program,
         *errcode_ret = CL_SUCCESS;
     }
 
-    return kernel;
+    return kernel_l;
 }
 
 cl_mem clCreateBuffer (cl_context context,
@@ -526,13 +520,13 @@ cl_mem clCreateBuffer (cl_context context,
                       cl_int *errcode_ret)
 {
     printf("doing createbuffer\n");
-    cl_mem buffer;
+    int64 *buffer_l = malloc(sizeof(int64));
     _buf[0] = CREATE_BUF;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("Iii", &context, &flags, &size);
-    rtn = tpl_map("I", &buffer);
+    stn = tpl_map("Iii", context, &flags, &size);
+    rtn = tpl_map("I", buffer_l);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -541,7 +535,7 @@ cl_mem clCreateBuffer (cl_context context,
         *errcode_ret = CL_SUCCESS;
     }
 
-    return buffer;
+    return buffer_l;
 }
 
 cl_int clSetKernelArg (cl_kernel kernel,
@@ -550,17 +544,24 @@ cl_int clSetKernelArg (cl_kernel kernel,
                        const void *arg_value)
 {
     printf("doing setkernelarg\n");
-    void *ptr = NULL;
+    int64 *ptr = NULL;
     int result;
     _buf[0] = SET_KERN_ARG;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
     if (arg_value == NULL) {
-        arg_value = &ptr;
+        stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, &ptr);
+    }
+    else if (arg_size == 1234) {
+        stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, arg_value);
+    }
+    else {
+        int64 *tmp = (int64 *)arg_value;
+        arg_size = 8;
+        stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, *tmp);
     }
 
-    stn = tpl_map("IiiI", &kernel, &arg_index, &arg_size, arg_value);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -586,7 +587,7 @@ cl_int clEnqueueNDRangeKernel (cl_command_queue command_queue,
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiii", &command_queue, &kernel, &work_dim, 
+    stn = tpl_map("IIiii", command_queue, kernel, &work_dim, 
         global_work_size, &num_events_in_wait_list);
     rtn = tpl_map("i", &result);
 
@@ -604,7 +605,7 @@ cl_int clFinish (cl_command_queue command_queue)
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("I", &command_queue);
+    stn = tpl_map("I", command_queue);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -632,7 +633,7 @@ void * clEnqueueMapBuffer (cl_command_queue command_queue,
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiiii", &command_queue, &buffer, &blocking_map, 
+    stn = tpl_map("IIiiiii", command_queue, buffer, &blocking_map, 
         &map_flags, &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
@@ -660,7 +661,7 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiii", &command_queue, &buffer, &blocking_read, 
+    stn = tpl_map("IIiiii", command_queue, buffer, &blocking_read, 
         &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
@@ -688,15 +689,15 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
     _buf[0] = ENQ_WRITE_BUF;
     if (no_bufs > 127) {
         _buf[1] = -1;
-        unsigned short *us = (unsigned short *) _buf + 2;
-        *us = no_bufs;
+        _buf[2] = no_bufs / 256;
+        _buf[3] = no_bufs % 256;
     }
     else {
         _buf[1] = cb/1024 + 1;
     }
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiiiA(c)", &command_queue, &buffer, &blocking_write, 
+    stn = tpl_map("IIiiiiA(c)", command_queue, buffer, &blocking_write, 
         &offset, &cb, &num_events_in_wait_list, &c);
     rtn = tpl_map("i", &result);
 
@@ -719,7 +720,7 @@ cl_int clReleaseMemObject (cl_mem memobj)
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("I", &memobj);
+    stn = tpl_map("I", memobj);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -735,7 +736,7 @@ cl_int clReleaseProgram (cl_program program)
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("I", &program);
+    stn = tpl_map("I", program);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -751,7 +752,7 @@ cl_int clReleaseKernel (cl_kernel kernel)
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("I", &kernel);
+    stn = tpl_map("I", kernel);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -767,7 +768,7 @@ cl_int clReleaseCommandQueue (cl_command_queue command_queue)
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("I", &command_queue);
+    stn = tpl_map("I", command_queue);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -783,7 +784,7 @@ cl_int clReleaseContext (cl_context context)
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("I", &context);
+    stn = tpl_map("I", context);
     rtn = tpl_map("i", &result);
 
     tpl_rpc_call(stn, rtn);
@@ -798,7 +799,7 @@ init_rpc()
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(51234);
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_addr.s_addr = inet_addr("10.244.18.145");
 
     tcp_connect(&addr, 0);
 

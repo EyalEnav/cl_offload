@@ -178,6 +178,7 @@ int main(int argc, char *argv[])
 	
 	// Build the program executable
 	//
+	//err = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
 	err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
@@ -216,8 +217,8 @@ int main(int argc, char *argv[])
 	err = 0;
 	err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input);
 	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &output);
-	err |= clSetKernelArg(kernel, 2, sizeof(unsigned int), &dib.width);
-	err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &dib.height);
+	err |= clSetKernelArg(kernel, 2, 1234, &dib.width);
+	err |= clSetKernelArg(kernel, 3, 1234, &dib.height);
 	err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &coefs_ver);
 	err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &coefs_hor);
 	// Shared memory

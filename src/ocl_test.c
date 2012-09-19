@@ -3,7 +3,7 @@
 #include "and_rpc_clnt.h"
 #include <CL/cl.h>
 
-#define NWITEMS 1600000
+#define NWITEMS 512
 
 const char *source = 
 "__kernel void memset( __global uint *dst )  \n"

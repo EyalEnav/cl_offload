@@ -236,9 +236,18 @@ do_set_kern_arg(char **buf, int size)
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + 4, size - 4);
     tpl_unpack(stn, 0);
 
+    printf("kernel %p arg_idx %d arg_size %d arg_val %p\n", 
+            kernel, arg_index, arg_size, arg_value);
+
     if (arg_value == NULL) {
-        printf("fudy null\n");
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
+    }
+    else if (arg_size == 1234) {
+        int *tmp = malloc(sizeof(int));
+        *tmp = arg_value;
+        printf("arg_val %d\n", *tmp);
+        arg_size = sizeof(int);
+        result = clSetKernelArg(kernel, arg_index, arg_size, tmp);
     }
     else {
         result = clSetKernelArg(kernel, arg_index, arg_size, &arg_value);
@@ -296,6 +305,8 @@ do_finish(char **buf, int size)
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + 4, size - 4);
     tpl_unpack(stn, 0);
 
+    printf("queue %p\n", command_queue);
+
     result = clFinish(command_queue);
     printf("finish result %d\n", result);
 
@@ -329,9 +340,10 @@ do_enq_map_buf(char **buf, int size)
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + 4, size - 4);
     tpl_unpack(stn, 0);
 
+    int tmp = 512;
     buff = (char *) clEnqueueMapBuffer( command_queue, buffer, blocking_map, map_flags,
-                                          offset, cb, num_events_in_wait_list,
-                                          NULL, NULL, NULL );
+                                        offset, cb, num_events_in_wait_list, 
+                                        NULL, NULL, NULL);
 
     tpl_pack(rtn, 0);
     int i;
@@ -348,8 +360,9 @@ do_enq_map_buf(char **buf, int size)
         int no_bufs = cb/1024 + 1;
         if (no_bufs > 127) {
             tmp_buf[1] = -1;
-            unsigned short *us = (unsigned short *) tmp_buf + 2;
-            *us = no_bufs;
+            tmp_buf[1] = -1;
+            tmp_buf[2] = no_bufs/256;
+            tmp_buf[3] = no_bufs % 256;
         }
         else {
             tmp_buf[1] = cb/1024 + 1;
@@ -387,6 +400,7 @@ do_enq_read_buf(char **buf, int size)
     tpl_unpack(stn, 0);
 
     buff = malloc(cb);
+    int tmp = 512;
     result = clEnqueueReadBuffer( command_queue, buffer, blocking_read, offset,
                                           cb, buff, num_events_in_wait_list,
                                           NULL, NULL);
@@ -406,8 +420,8 @@ do_enq_read_buf(char **buf, int size)
         int no_bufs = cb/1024 + 1;
         if (no_bufs > 127) {
             tmp_buf[1] = -1;
-            unsigned short *us = (unsigned short *) tmp_buf + 2;
-            *us = no_bufs;
+            tmp_buf[2] = no_bufs/256;
+            tmp_buf[3] = no_bufs % 256;
         }
         else {
             tmp_buf[1] = cb/1024 + 1;
