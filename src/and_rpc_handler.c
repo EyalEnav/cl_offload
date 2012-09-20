@@ -243,7 +243,7 @@ do_set_kern_arg(char **buf, int size)
     cl_kernel kernel;
     int arg_index;
     int arg_size;
-    const void *arg_value;
+    long long int arg_value;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IiiI", &kernel, &arg_index, &arg_size, &arg_value);
@@ -260,23 +260,12 @@ do_set_kern_arg(char **buf, int size)
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
     }
     else if (arg_size == 1001) {
-        /*
-        cl_int *tmp = (cl_int *)(&arg_value);
-        arg_size = sizeof(cl_int);
-        printf("arg_value %d\n", tmp[1]);
-        result = clSetKernelArg(kernel, arg_index, arg_size, tmp + 1);
-        */
         cl_int tmp = 18;
         result = clSetKernelArg(kernel, arg_index, sizeof(cl_int), &tmp);
     }
     else if (arg_size == 1002) {
-        /*
-        cl_int *tmp = (cl_int *)(&arg_value);
-        arg_size = sizeof(cl_uint);
-        printf("arg_value %d\n", tmp[1]);
-        result = clSetKernelArg(kernel, arg_index, arg_size, tmp + 1);
-        */
-        cl_uint tmp = 512;
+        printf("arg_value %d\n", arg_value);
+        cl_uint tmp = arg_value;
         result = clSetKernelArg(kernel, arg_index, sizeof(cl_uint), &tmp);
     }
     else if (arg_size == 1003) {
@@ -527,7 +516,7 @@ do_enq_write_buf(char **buf, int size)
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    free(buff);
+    //free(buff);
     return sz;
 }
 
