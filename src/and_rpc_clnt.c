@@ -297,8 +297,6 @@ tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
         buf[i] = *c;
         i++;
     }
-    printf("amount unpacked %d\n", i);
-
 
     tpl_free(stn);
     tpl_free(rtn);
@@ -678,7 +676,6 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
         c = buf[i];
         tpl_pack(stn, 1);
     }
-    printf("amount packed %d\n", i);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);

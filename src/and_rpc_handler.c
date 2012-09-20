@@ -260,19 +260,27 @@ do_set_kern_arg(char **buf, int size)
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
     }
     else if (arg_size == 1001) {
+        /*
         cl_int *tmp = (cl_int *)(&arg_value);
         arg_size = sizeof(cl_int);
         printf("arg_value %d\n", tmp[1]);
         result = clSetKernelArg(kernel, arg_index, arg_size, tmp + 1);
+        */
+        cl_int tmp = 18;
+        result = clSetKernelArg(kernel, arg_index, sizeof(cl_int), &tmp);
     }
     else if (arg_size == 1002) {
+        /*
         cl_int *tmp = (cl_int *)(&arg_value);
         arg_size = sizeof(cl_uint);
         printf("arg_value %d\n", tmp[1]);
         result = clSetKernelArg(kernel, arg_index, arg_size, tmp + 1);
+        */
+        cl_uint tmp = 512;
+        result = clSetKernelArg(kernel, arg_index, sizeof(cl_uint), &tmp);
     }
     else if (arg_size == 1003) {
-        cl_float tmp = 80.0f;
+        float tmp = 80.0f;
         arg_size = sizeof(cl_float);
         result = clSetKernelArg(kernel, arg_index, arg_size, &tmp);
     }
@@ -411,7 +419,6 @@ do_enq_map_buf(char **buf, int size)
         c = buff[i];
         tpl_pack(rtn, 1);
     }
-    printf("amount packed %d\n", i);
 
     tpl_dump(rtn, TPL_GETSIZE, &sz);
 
@@ -463,7 +470,6 @@ do_enq_read_buf(char **buf, int size)
         c = buff[i];
         tpl_pack(rtn, 1);
     }
-    printf("amount packed %d\n", i);
 
     tpl_dump(rtn, TPL_GETSIZE, &sz);
 
@@ -509,7 +515,6 @@ do_enq_write_buf(char **buf, int size)
         buff[i] = c;
         i++;
     }
-    printf("amount unpacked %d\n", i);
 
     result = clEnqueueWriteBuffer( command_queue, buffer, blocking_write, offset,
                                           cb, buff, num_events_in_wait_list,
@@ -522,7 +527,7 @@ do_enq_write_buf(char **buf, int size)
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    (*buf)[1] = 1;
+    free(buff);
     return sz;
 }
 
