@@ -150,15 +150,17 @@ do_build_prog(char **buf, int size)
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + 4, size - 4);
     tpl_unpack(stn, 0);
 
+    char *flags = "-cl-fast-relaxed-math";
+
     printf("prog %p num_dev %d\n", program, num_devices);
     if (device_list == NULL) {
         printf("null found\n");
         result = clBuildProgram(program, num_devices, NULL,
-            NULL, NULL, NULL);
+            flags, NULL, NULL);
     }
     else {
         result = clBuildProgram(program, num_devices, &device_list,
-            NULL, NULL, NULL);
+            flags, NULL, NULL);
     }
     printf("build_prog result %d\n", result);
 
@@ -242,12 +244,20 @@ do_set_kern_arg(char **buf, int size)
     if (arg_value == NULL) {
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
     }
-    else if (arg_size == 1234) {
-        int *tmp = malloc(sizeof(int));
-        *tmp = arg_value;
-        printf("arg_val %d\n", *tmp);
-        arg_size = sizeof(int);
-        result = clSetKernelArg(kernel, arg_index, arg_size, tmp);
+    else if (arg_size == 1001) {
+        cl_int tmp = 18;
+        arg_size = sizeof(cl_int);
+        result = clSetKernelArg(kernel, arg_index, arg_size, &tmp);
+    }
+    else if (arg_size == 1002) {
+        cl_uint tmp = 512;
+        arg_size = sizeof(cl_uint);
+        result = clSetKernelArg(kernel, arg_index, arg_size, &tmp);
+    }
+    else if (arg_size == 1003) {
+        cl_float tmp = 80.0f;
+        arg_size = sizeof(cl_float);
+        result = clSetKernelArg(kernel, arg_index, arg_size, &tmp);
     }
     else {
         result = clSetKernelArg(kernel, arg_index, arg_size, &arg_value);
@@ -279,7 +289,7 @@ do_enq_ndr_kern(char **buf, int size)
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + 4, size - 4);
     tpl_unpack(stn, 0);
 
-    int tmp = global_work_size;
+    size_t tmp = global_work_size;
     result = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL,
         &tmp, NULL, 0, NULL, NULL);
 
@@ -309,6 +319,31 @@ do_finish(char **buf, int size)
 
     result = clFinish(command_queue);
     printf("finish result %d\n", result);
+
+    tpl_pack(rtn, 0);
+    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + 4, size - 4);
+
+    return sz;
+}
+
+static int
+do_flush(char **buf, int size)
+{
+    int result, sz;
+    cl_command_queue command_queue;
+    tpl_node *stn, *rtn;
+
+    stn = tpl_map("I", &command_queue);
+    rtn = tpl_map("i", &result);
+
+    tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + 4, size - 4);
+    tpl_unpack(stn, 0);
+
+    printf("queue %p\n", command_queue);
+
+    result = clFlush(command_queue);
+    printf("flush result %d\n", result);
 
     tpl_pack(rtn, 0);
     tpl_dump(rtn, TPL_GETSIZE, &sz);
@@ -595,7 +630,7 @@ do_release_ctx(char **buf, int size)
 }
 
 int
-process_request(char **buf, ssize_t nread, int size)
+process_request(char **buf, int nread, int size)
 {
     int meth = (*buf)[0];
     int len = size;
@@ -677,6 +712,10 @@ process_request(char **buf, ssize_t nread, int size)
 
     case RELEASE_CTX:
         sz = do_release_ctx(buf, len);
+        break;
+
+    case FLUSH:
+        sz = do_flush(buf, len);
         break;
 
     default:

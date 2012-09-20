@@ -8,7 +8,7 @@ LOCAL_MODULE := test
 LOCAL_C_INCLUDES := .
 
 LOCAL_SRC_FILES := ../../../src/and_rpc_clnt.c \
-                   ../../../src/sobel_test.c \
+                   ../../../src/sobel.c \
                    ../../../src/tpl.c
 
 include $(BUILD_EXECUTABLE)

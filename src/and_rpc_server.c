@@ -195,12 +195,11 @@ handle_client(void *arg)
 
             int i = 1, x = 0;
             while (i < j) {
-                if ((nnread = recv(sock, buf, 1024, 
-                    0)) < 1) {
+                if ((nnread = recv(sock, buf, 1024, 0)) < 1) {
                     fprintf(stderr, "recv large buffer failed\n");
                     break;
                 }
-                memcpy(new_buf + (1024 * i), buf, nnread);
+                memcpy(new_buf + nread, buf, nnread);
                 i++;
                 nread += nnread;
                 x += 1024 - nnread;

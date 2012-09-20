@@ -250,7 +250,7 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
                 fprintf(stderr, "recv large buffer failed\n");
                 close(tcp_sock);
             }
-            memcpy(_big_buf + (1024 * i), _buf, nnread);
+            memcpy(_big_buf + nread, _buf, nnread);
             i++;
             nread += nnread;
             x += 1024 - nnread;
@@ -553,7 +553,7 @@ cl_int clSetKernelArg (cl_kernel kernel,
     if (arg_value == NULL) {
         stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, &ptr);
     }
-    else if (arg_size == 1234) {
+    else if (arg_size == 1001 || arg_size == 1002 || arg_size == 1003) {
         stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, arg_value);
     }
     else {
@@ -602,6 +602,23 @@ cl_int clFinish (cl_command_queue command_queue)
     printf("doing finish\n\n");
     int result;
     _buf[0] = FINISH;
+    _buf[1] = 1;
+    tpl_node *stn, *rtn;
+
+    stn = tpl_map("I", command_queue);
+    rtn = tpl_map("i", &result);
+
+    tpl_rpc_call(stn, rtn);
+    tpl_deserialize(stn, rtn);
+
+    return result;
+}
+
+cl_int clFlush (cl_command_queue command_queue)
+{
+    printf("doing flush\n\n");
+    int result;
+    _buf[0] = FLUSH;
     _buf[1] = 1;
     tpl_node *stn, *rtn;
 

@@ -20,6 +20,7 @@
 #define RELEASE_KERN 18
 #define RELEASE_CQUEUE 19
 #define RELEASE_CTX 20
+#define FLUSH 21
 
 #define MCAST_ADDR "239.192.1.100"
 
