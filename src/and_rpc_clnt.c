@@ -170,13 +170,13 @@ static int
 tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
 {
     char *sbuf = NULL;
-    size_t nsend, nread, sz = -1;
+    size_t nread, nnread, sz = -1;
 
     tpl_pack(stn, 0);
     tpl_dump(stn, TPL_GETSIZE, &sz);
-    sz += 4;
+    sz += H_OFFSET;
 
-    printf("sz %d\n", sz);
+    printf("sz to send %d\n", sz);
 
     if (sz < 1) {
         fprintf(stderr, "error dump size %d\n", sz);
@@ -186,39 +186,31 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
     else if (sz > 1020) {
         printf("doing malloc\n");
         sbuf = malloc(sz);
-        memcpy(sbuf, _buf, 4);
+        memcpy(sbuf, _buf, H_OFFSET);
     }
     else {
         sbuf = _buf;
     }
 
-    tpl_dump(stn, TPL_MEM|TPL_PREALLOCD, sbuf + 4, sz);
+    tpl_dump(stn, TPL_MEM|TPL_PREALLOCD, sbuf + H_OFFSET, sz);
 
-    int idx = sz, i = 0;
-    while (1) {
-        if (idx > 1024) {
-            if ((nsend = send(tcp_sock, sbuf + i, 1024, 0)) < 1) {
-                fprintf(stderr, "send failed\n");
-                tpl_free(stn);
-                close(tcp_sock);
-                return -1;
-            }
-            idx -= nsend;
-            i += nsend;
-            printf("idx %d\n", idx);
-        }
-        if (idx < 1024) {
-            if ((nsend = send(tcp_sock, sbuf + i, idx, 0)) < 1) {
-                fprintf(stderr, "send failed\n");
-                tpl_free(stn);
-                close(tcp_sock);
-                return -1;
-            }
-            printf("nsend %d\n", nsend);
-            break;
-        }
+    uint32_t *sz_ptr = (uint32_t *)sbuf;
+    *sz_ptr = sz;
 
+    int idx = sz, i = 0, nsend = 0;
+    while (idx > 1) {
+        if ((nsend = send(tcp_sock, sbuf + i, idx, 0)) < 1) {
+            fprintf(stderr, "send failed\n");
+            tpl_free(stn);
+            close(tcp_sock);
+            return -1;
+        }
+        idx -= nsend;
+        i += nsend;
+        printf("idx %d i %d\n", idx, i);
     }
+
+    printf("done sent %d\n", i);
 
     if ((nread = recv(tcp_sock, _buf, sizeof(_buf), 0)) < 1) {
         fprintf(stderr, "recv failed\n");
@@ -227,55 +219,42 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
         return -1;
     }
 
-    printf("nread %d\n", nread);
+    printf("first recv %d\n", nread);
 
-    if (_buf[1] > 1 || _buf[1] == -1) {
-        fprintf(stderr, "big buffer size %d\n", _buf[1]);
-        int nnread, buf_size, j;
-        if (_buf[1] == -1) {
-            buf_size = 1024 * (_buf[2] * 256 + _buf[3]);
-            j = _buf[2] * 256 + _buf[3];
-        }
-        else {
-            buf_size = 1024 * _buf[1];
-            j = _buf[1];
-        }
-        _big_buf = malloc(buf_size);
+    uint32_t *len = (uint32_t *) _buf;
+    int left = *len - nread;
+
+    printf("len %d left %d\n", *len, left);
+
+    if (left > 0) {
+        _big_buf = malloc(*len);
         memcpy(_big_buf, _buf, nread);
 
-        int i = 1, x = 0;
-        while ( i < j) {
-            if ((nnread = recv(tcp_sock, _buf, 1024, 
-                0)) < 1) {
+        while ( left > 0) {
+            if ((nnread = recv(tcp_sock, _buf, 1024, 0)) < 1) {
                 fprintf(stderr, "recv large buffer failed\n");
                 close(tcp_sock);
             }
             memcpy(_big_buf + nread, _buf, nnread);
-            i++;
             nread += nnread;
-            x += 1024 - nnread;
-            if (x >= 1024) {
-                i--;
-                x -= 1024;
-            }
-            printf("loop nnread %d i %d j %d\n", nnread, i, j);
+            left -= nnread;
+            printf("left %d nread %d nnread %d\n", left, nread, nnread);
         }
-        printf("nnread %d\n", nnread);
     }
+    printf("total nread %d\n", nread);
 
     if (sbuf != _buf) {
         free(sbuf);
     }
 
-    printf("total %d\n", nread);
     return nread;
 }
 
 static int
 tpl_deserialize(tpl_node *stn, tpl_node *rtn)
 {
-    if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + 4, 
-        sizeof(_buf) -4) < 0) {
+    if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + H_OFFSET, 
+        sizeof(_buf) - H_OFFSET) < 0) {
         fprintf(stderr, "load failed\n");
         tpl_free(stn);
         tpl_free(rtn);
@@ -292,10 +271,10 @@ tpl_deserialize(tpl_node *stn, tpl_node *rtn)
 static int
 tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
 {
-    if (cb > 1020) {
+    if (cb > 1024) {
         fprintf(stderr, "big tpl_load %d\n", cb);
-        if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _big_buf + 4, 
-            cb - 4) < 0) {
+        if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _big_buf + H_OFFSET, 
+            cb - H_OFFSET) < 0) {
             fprintf(stderr, "load failed\n");
             tpl_free(stn);
             tpl_free(rtn);
@@ -303,8 +282,8 @@ tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
         }
     }
     else {
-        if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + 4, 
-            sizeof(_buf) -4) < 0) {
+        if (tpl_load(rtn, TPL_MEM|TPL_EXCESS_OK, _buf + H_OFFSET, 
+            sizeof(_buf) - H_OFFSET) < 0) {
             fprintf(stderr, "load failed\n");
             tpl_free(stn);
             tpl_free(rtn);
@@ -318,6 +297,7 @@ tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
         buf[i] = *c;
         i++;
     }
+    printf("amount unpacked %d\n", i);
 
 
     tpl_free(stn);
@@ -343,8 +323,7 @@ cl_int clGetPlatformIDs (cl_uint num_entries,
     int64 *platforms_l = malloc(sizeof(int64));
     *platforms = platforms_l;
 
-    _buf[0] = GET_PLAT_ID;
-    _buf[1] = 1;
+    _buf[M_IDX] = GET_PLAT_ID;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("i", &num_entries);
@@ -366,8 +345,7 @@ cl_int clGetDeviceIDs (cl_platform_id platform,
     int result;
     int64 *devices_l = malloc(sizeof(int64));
     *devices = devices_l;
-    _buf[0] = GET_DEV_ID;
-    _buf[1] = 1;
+    _buf[M_IDX] = GET_DEV_ID;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("Iii", platform, &device_type, &num_entries);
@@ -390,8 +368,7 @@ cl_context clCreateContext (const cl_context_properties *properties,
 {
     printf("doing createcontext\n");
     int64 *context_l = malloc(sizeof(int64));
-    _buf[0] = CREATE_CTX;
-    _buf[1] = 1;
+    _buf[M_IDX] = CREATE_CTX;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("iI", &num_devices, *devices);
@@ -414,8 +391,7 @@ cl_command_queue clCreateCommandQueue (cl_context context,
 {
     printf("doing createcommandqueue\n");
     int64 *queue_l = malloc(sizeof(int64));
-    _buf[0] = CREATE_CQUEUE;
-    _buf[1] = 1;
+    _buf[M_IDX] = CREATE_CQUEUE;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIi", context, device, &properties);
@@ -428,8 +404,6 @@ cl_command_queue clCreateCommandQueue (cl_context context,
         *errcode_ret = CL_SUCCESS;
     }
 
-    printf("QUEUE_L %p\n", *queue_l);
-
     return queue_l;
 }
 
@@ -441,8 +415,7 @@ cl_program clCreateProgramWithSource (cl_context context,
 {
     printf("doing createprogramwithsource\n");
     int64 *program_l = malloc(sizeof(int64));
-    _buf[0] = CREATE_PROG_WS;
-    _buf[1] = strlen(*strings)/1024 + 1;
+    _buf[M_IDX] = CREATE_PROG_WS;
     tpl_node *stn, *rtn;
 
     printf("strlen %d\n", strlen(*strings));
@@ -471,8 +444,7 @@ cl_int clBuildProgram (cl_program program,
     printf("doing build program\n");
     int64 *ptr = NULL;
     int result;
-    _buf[0] = BUILD_PROG;
-    _buf[1] = 1;
+    _buf[M_IDX] = BUILD_PROG;
     tpl_node *stn, *rtn;
 
     if (device_list == NULL) {
@@ -496,8 +468,7 @@ cl_kernel clCreateKernel (cl_program program,
 {
     printf("doing createkernel\n");
     int64 *kernel_l = malloc(sizeof(int64));
-    _buf[0] = CREATE_KERN;
-    _buf[1] = 1;
+    _buf[M_IDX] = CREATE_KERN;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("Is", program, &kernel_name);
@@ -521,8 +492,7 @@ cl_mem clCreateBuffer (cl_context context,
 {
     printf("doing createbuffer\n");
     int64 *buffer_l = malloc(sizeof(int64));
-    _buf[0] = CREATE_BUF;
-    _buf[1] = 1;
+    _buf[M_IDX] = CREATE_BUF;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("Iii", context, &flags, &size);
@@ -546,8 +516,7 @@ cl_int clSetKernelArg (cl_kernel kernel,
     printf("doing setkernelarg\n");
     int64 *ptr = NULL;
     int result;
-    _buf[0] = SET_KERN_ARG;
-    _buf[1] = 1;
+    _buf[M_IDX] = SET_KERN_ARG;
     tpl_node *stn, *rtn;
 
     if (arg_value == NULL) {
@@ -583,8 +552,7 @@ cl_int clEnqueueNDRangeKernel (cl_command_queue command_queue,
 {
     printf("doing enqndrange\n");
     int result;
-    _buf[0] = ENQ_NDR_KERN;
-    _buf[1] = 1;
+    _buf[M_IDX] = ENQ_NDR_KERN;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIiii", command_queue, kernel, &work_dim, 
@@ -601,8 +569,7 @@ cl_int clFinish (cl_command_queue command_queue)
 {
     printf("doing finish\n\n");
     int result;
-    _buf[0] = FINISH;
-    _buf[1] = 1;
+    _buf[M_IDX] = FINISH;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", command_queue);
@@ -618,8 +585,7 @@ cl_int clFlush (cl_command_queue command_queue)
 {
     printf("doing flush\n\n");
     int result;
-    _buf[0] = FLUSH;
-    _buf[1] = 1;
+    _buf[M_IDX] = FLUSH;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", command_queue);
@@ -646,8 +612,7 @@ void * clEnqueueMapBuffer (cl_command_queue command_queue,
     char *buf = malloc(cb);
     char c;
     int result;
-    _buf[0] = ENQ_MAP_BUF;
-    _buf[1] = 1;
+    _buf[M_IDX] = ENQ_MAP_BUF;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIiiiii", command_queue, buffer, &blocking_map, 
@@ -674,8 +639,7 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
     char *buf = ptr;
     char c;
     int result;
-    _buf[0] = ENQ_READ_BUF;
-    _buf[1] = 1;
+    _buf[M_IDX] = ENQ_READ_BUF;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIiiii", command_queue, buffer, &blocking_read, 
@@ -699,19 +663,10 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
                             cl_event *event)
 {
     printf("doing write buffer %d\n", cb);
-    int no_bufs = cb/1024 + 1;
     const char *buf = ptr;
     char c;
     int result;
-    _buf[0] = ENQ_WRITE_BUF;
-    if (no_bufs > 127) {
-        _buf[1] = -1;
-        _buf[2] = no_bufs / 256;
-        _buf[3] = no_bufs % 256;
-    }
-    else {
-        _buf[1] = cb/1024 + 1;
-    }
+    _buf[M_IDX] = ENQ_WRITE_BUF;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IIiiiiA(c)", command_queue, buffer, &blocking_write, 
@@ -723,6 +678,7 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
         c = buf[i];
         tpl_pack(stn, 1);
     }
+    printf("amount packed %d\n", i);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -733,8 +689,7 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
 cl_int clReleaseMemObject (cl_mem memobj)
 {
     int result;
-    _buf[0] = RELEASE_MEM;
-    _buf[1] = 1;
+    _buf[M_IDX] = RELEASE_MEM;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", memobj);
@@ -749,8 +704,7 @@ cl_int clReleaseMemObject (cl_mem memobj)
 cl_int clReleaseProgram (cl_program program)
 {
     int result;
-    _buf[0] = RELEASE_PROG;
-    _buf[1] = 1;
+    _buf[M_IDX] = RELEASE_PROG;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", program);
@@ -765,8 +719,7 @@ cl_int clReleaseProgram (cl_program program)
 cl_int clReleaseKernel (cl_kernel kernel)
 {
     int result;
-    _buf[0] = RELEASE_KERN;
-    _buf[1] = 1;
+    _buf[M_IDX] = RELEASE_KERN;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", kernel);
@@ -781,8 +734,7 @@ cl_int clReleaseKernel (cl_kernel kernel)
 cl_int clReleaseCommandQueue (cl_command_queue command_queue)
 {
     int result;
-    _buf[0] = RELEASE_CQUEUE;
-    _buf[1] = 1;
+    _buf[M_IDX] = RELEASE_CQUEUE;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", command_queue);
@@ -797,8 +749,7 @@ cl_int clReleaseCommandQueue (cl_command_queue command_queue)
 cl_int clReleaseContext (cl_context context)
 {
     int result;
-    _buf[0] = RELEASE_CTX;
-    _buf[1] = 1;
+    _buf[M_IDX] = RELEASE_CTX;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("I", context);
@@ -811,12 +762,12 @@ cl_int clReleaseContext (cl_context context)
 }
 
 int 
-init_rpc()
+init_rpc(const char *ip)
 {
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(51234);
-    addr.sin_addr.s_addr = inet_addr("10.244.18.145");
+    addr.sin_addr.s_addr = inet_addr(ip);
 
     tcp_connect(&addr, 0);
 

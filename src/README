@@ -1,0 +1,9 @@
+
+compile client
+
+gcc and_rpc_clnt.c tpl.c sobel.c -I /opt/AMDAPP/include -o client
+
+compile server
+
+gcc and_rpc_server.c and_rpc_handler.c tpl.c -I /opt/AMDAPP/include -lOpenCL -o server
+

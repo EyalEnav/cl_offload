@@ -3,7 +3,7 @@
 #include "and_rpc_clnt.h"
 #include <CL/cl.h>
 
-#define NWITEMS 512
+#define NWITEMS 160000
 
 const char *source = 
 "__kernel void memset( __global uint *dst )  \n"
@@ -11,9 +11,9 @@ const char *source =
 "    dst[get_global_id(0)] = get_global_id(0) + 4;  \n"
 "}  \n";
 
-int main()
+int main(int argc, char *argv[])
 {
-    init_rpc();
+    init_rpc(argv[1]);
 
     cl_platform_id platform;
     clGetPlatformIDs( 1, &platform, NULL );

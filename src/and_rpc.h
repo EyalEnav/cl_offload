@@ -23,4 +23,7 @@
 #define FLUSH 21
 
 #define MCAST_ADDR "239.192.1.100"
+#define M_IDX 4
+#define H_OFFSET 5
+#define BUFSIZE 1024
 

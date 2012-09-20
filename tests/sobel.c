@@ -269,7 +269,7 @@ int main(int argc, char argv[])
     cl_int iLocalPixPitch = iBlockDimX + 2;
     cl_uint img_size, img_width, img_height;
 
-    unsigned char *data, *out_img;
+    unsigned char *data = NULL, *out_img;
 
     shrLoadPPM4ub("tmp.ppm", &data, &img_width, &img_height);
     img_size = img_width * img_height * sizeof(unsigned int);
@@ -324,18 +324,19 @@ int main(int argc, char argv[])
     err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &output);
     printf("err %d\n", err);
 
+    int arg_size = (iLocalPixPitch * (iBlockDimY + 2) * sizeof(cl_uchar4));
     err = clSetKernelArg(kernel, 2, (iLocalPixPitch * (iBlockDimY + 2) * 
            sizeof(cl_uchar4)), NULL);
-    printf("err %d\n", err);
+    printf("arg_size %d err %d\n", arg_size, err);
 
     err = clSetKernelArg(kernel, 3, sizeof(cl_int), (void*)&iLocalPixPitch);
-    printf("err %d\n", err);
+    printf("localpixpitch %d err %d\n", iLocalPixPitch, err);
 
     err = clSetKernelArg(kernel, 4, sizeof(cl_uint), (void*)&img_width);
-    printf("err %d\n", err);
+    printf("w %d err %d\n", img_width, err);
 
     err = clSetKernelArg(kernel, 5, sizeof(cl_uint), (void*)&img_height);
-    printf("err %d\n", err);
+    printf("w %d err %d\n", img_height, err);
 
     err = clSetKernelArg(kernel, 6, sizeof(cl_float), (void*)&fThresh);
     printf("err %d\n", err);

@@ -163,90 +163,78 @@ start_mcast_thread(void *data)
 static void *
 handle_client(void *arg)
 {
-    int buf_size, sock = (int) arg;
+    int buf_size, tcp_sock = (int) arg;
     char buff[BUFSIZE];
-    char *tmp_buf, *new_buf = NULL, *buf = buff;
-    ssize_t nread, nnread;
-    int total = 0;
-    int nsend = 0;
+    char *tmp_buf, *big_buf = NULL, *buf = buff;
+    size_t nread, nnread, sz = -1;
 
     while (1) {
-        if ((nread = recv(sock, buf, sizeof(buff), 0)) < 1) {
+        if ((nread = recv(tcp_sock, buf, sizeof(buff), 0)) < 1) {
             fprintf(stderr, "recv failed\n");
             break;
         }
-        printf("nread %d\n", nread);
         tmp_buf = buf;
 
-        if (buf[1] > 1 || buf[1] == -1) {
-            fprintf(stderr, "big buffer server size %d\n", buf[1]);
-            int nnread, buf_size, j;
-            if (buf[1] == -1) {
-                buf_size = 1024 * (buf[2] * 256 + buf[3]);
-                j = buf[2] * 256 + buf[3];
-            }
-            else {
-                buf_size = 1024 * buf[1];
-                j = buf[1];
-            }
 
-            new_buf = malloc(buf_size);
-            memcpy(new_buf, buf, nread);
+        uint32_t *len = (uint32_t *) buf;
+        int left = (*len) - nread;
 
-            int i = 1, x = 0;
-            while (i < j) {
-                if ((nnread = recv(sock, buf, 1024, 0)) < 1) {
+        if (left > 0) {
+            big_buf = malloc(*len);
+            memcpy(big_buf, buf, nread);
+
+            while ( left > 0) {
+                if ((nnread = recv(tcp_sock, buf, 1024, 0)) < 1) {
                     fprintf(stderr, "recv large buffer failed\n");
-                    break;
+                    close(tcp_sock);
                 }
-                memcpy(new_buf + nread, buf, nnread);
-                i++;
+                memcpy(big_buf + nread, buf, nnread);
                 nread += nnread;
-                x += 1024 - nnread;
-                if (x >= 1024) {
-                    i--;
-                    x -= 1024;
-                }
-                printf("loop nnread %d i %d j %d\n", nnread, i, j);
+                left -= nnread;
+                printf("left %d nread %d nnread %d\n", left, nread, nnread);
             }
-            buf = new_buf;
-            nsend = process_request(&buf, nread, buf_size);
+            buf = big_buf;
+            sz = process_request(&buf, nread, buf_size);
         }
         else {
-            nsend = process_request(&buf, nread, sizeof(buff));
+            sz = process_request(&buf, nread, sizeof(buff));
         }
 
-        int idx = nsend, i = 0;
-        while (1) {
-            if (idx > 1024) {
-                if ((nsend = send(sock, buf + i, 1024, 0)) < 1) {
-                    fprintf(stderr, "send failed\n");
-                }
-                idx -= nsend;
-                i += nsend;
-                printf("idx %d\n", idx);
+        printf("total nread %d\n", nread);
+
+        printf("sz to send %d\n", sz);
+        
+        uint32_t *sz_ptr = (uint32_t *)buf;
+        *sz_ptr = sz;
+
+
+        int idx = sz, i = 0, nsend = 0;
+        while (idx > 1) {
+            if ((nsend = send(tcp_sock, buf + i, idx, 0)) < 1) {
+                fprintf(stderr, "send failed\n");
+                close(tcp_sock);
+                return -1;
             }
-            if (idx <= 1024) {
-                if ((nsend = send(sock, buf + i, idx, 0)) < 1) {
-                    fprintf(stderr, "send failed\n");
-                }
-                printf("nsend %d\n", nsend);
-                break;
-            }
+            idx -= nsend;
+            i += nsend;
+            printf("idx %d i %d\n", idx, i);
         }
+
+        printf("done sent %d\n", i);
 
         if (tmp_buf != buf) {
             fprintf(stderr, "buf changed, restoring it\n");
             buf = tmp_buf;
         }
 
-        if (new_buf != NULL) {
-            free(new_buf);
-            new_buf = NULL;
+        if (big_buf != NULL) {
+            fprintf(stderr, "freeing big_buf\n");
+            free(big_buf);
+            big_buf = NULL;
         }
     }
 
-    close(sock);
+    close(tcp_sock);
     pthread_exit(NULL);
 }
 

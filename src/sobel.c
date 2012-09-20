@@ -247,9 +247,9 @@ size_t shrRoundUp(int group_size, int global_size)
 }
 
 
-int main(int argc, char argv[])
+int main(int argc, char *argv[])
 {
-    init_rpc();
+    init_rpc(argv[1]);
 
     cl_platform_id platform;
     cl_device_id device;
