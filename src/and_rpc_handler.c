@@ -161,8 +161,8 @@ do_build_prog(char **buf, int size)
 
     char *flags = "-cl-fast-relaxed-math";
 
-    printf("prog %p num_dev %d\n", program, num_devices);
-    if (device_list == NULL) {
+    printf("prog %p num_dev %d dev_list %p\n", program, num_devices, device_list);
+    if (device_list == 0x8f3300000000) {
         printf("null found\n");
         result = clBuildProgram(program, num_devices, NULL,
             flags, NULL, NULL);
@@ -243,7 +243,7 @@ do_set_kern_arg(char **buf, int size)
     cl_kernel kernel;
     int arg_index;
     int arg_size;
-    long long int arg_value;
+    unsigned long long int arg_value;
     tpl_node *stn, *rtn;
 
     stn = tpl_map("IiiI", &kernel, &arg_index, &arg_size, &arg_value);
@@ -256,7 +256,8 @@ do_set_kern_arg(char **buf, int size)
     printf("kernel %p arg_idx %d arg_size %d arg_val %p\n", 
             kernel, arg_index, arg_size, arg_value);
 
-    if (arg_value == NULL) {
+    if (arg_value == 0x900300000000) {
+        printf("doing null\n");
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
     }
     else if (arg_size == 1001) {
