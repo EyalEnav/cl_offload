@@ -191,7 +191,7 @@ handle_client(void *arg)
                 memcpy(big_buf + nread, buf, nnread);
                 nread += nnread;
                 left -= nnread;
-                printf("left %d nread %d nnread %d\n", left, nread, nnread);
+                //printf("left %d nread %d nnread %d\n", left, nread, nnread);
             }
             buf = big_buf;
             sz = process_request(&buf, nread, buf_size);

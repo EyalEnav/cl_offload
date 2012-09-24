@@ -238,7 +238,7 @@ tpl_rpc_call(tpl_node *stn, tpl_node *rtn)
             memcpy(_big_buf + nread, _buf, nnread);
             nread += nnread;
             left -= nnread;
-            printf("left %d nread %d nnread %d\n", left, nread, nnread);
+            //printf("left %d nread %d nnread %d\n", left, nread, nnread);
         }
     }
     printf("total nread %d\n", nread);
@@ -553,9 +553,25 @@ cl_int clEnqueueNDRangeKernel (cl_command_queue command_queue,
     _buf[M_IDX] = ENQ_NDR_KERN;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiii", command_queue, kernel, &work_dim, 
-        global_work_size, &num_events_in_wait_list);
+    int gws, lws, tmp, tmp2;
+    stn = tpl_map("IIiiA(i)A(i)ii", command_queue, kernel, &work_dim, 
+        &gws, &lws, &num_events_in_wait_list, &tmp, &tmp2);
     rtn = tpl_map("i", &result);
+
+    int i;
+    for (i = 0; i < work_dim; i++) {
+        lws = local_work_size[i];
+        tpl_pack(stn, 2);
+        printf("lws %d i %d\n", lws, i);
+    }
+
+    for (i = 0; i < work_dim; i++) {
+        gws = global_work_size[i];
+        tpl_pack(stn, 1);
+        printf("gws %d i %d\n", gws, i);
+    }
+    tmp = local_work_size[0];
+    tmp2 = global_work_size[0];
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);

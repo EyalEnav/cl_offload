@@ -6,6 +6,8 @@
 #include "tpl.h"
 #include "and_rpc.h"
 
+static int gsz = 0;
+
 static int
 do_get_plat_id(char **buf, int size)
 {
@@ -24,11 +26,11 @@ do_get_plat_id(char **buf, int size)
     printf("result %d platform %p\n", result, platform);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -53,11 +55,11 @@ do_get_dev_id(char **buf, int size)
     printf("result %d device %p\n", result, devices);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -80,11 +82,11 @@ do_create_ctx(char **buf, int size)
     printf("context %p\n", context);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -108,11 +110,11 @@ do_create_cqueue(char **buf, int size)
     printf("queue %p\n", queue);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -136,11 +138,11 @@ do_create_prog_ws(char **buf, int size)
     printf("program %p\n", program);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -162,7 +164,7 @@ do_build_prog(char **buf, int size)
     char *flags = "-cl-fast-relaxed-math";
 
     printf("prog %p num_dev %d dev_list %p\n", program, num_devices, device_list);
-    if (device_list == 0x8f3300000000) {
+    if (device_list == NULL || device_list == 0x8f3300000000) {
         printf("null found\n");
         result = clBuildProgram(program, num_devices, NULL,
             flags, NULL, NULL);
@@ -174,11 +176,11 @@ do_build_prog(char **buf, int size)
     printf("build_prog result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -201,11 +203,11 @@ do_create_kern(char **buf, int size)
     printf("kernel %p\n", kernel);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -229,11 +231,11 @@ do_create_buf(char **buf, int size)
     printf("buffer %p\n", buffer);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -256,7 +258,7 @@ do_set_kern_arg(char **buf, int size)
     printf("kernel %p arg_idx %d arg_size %d arg_val %p\n", 
             kernel, arg_index, arg_size, arg_value);
 
-    if (arg_value == 0x900300000000) {
+    if (arg_value == NULL || arg_value == 0x900300000000) {
         printf("doing null\n");
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
     }
@@ -280,11 +282,11 @@ do_set_kern_arg(char **buf, int size)
     printf("set_kern result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -294,30 +296,49 @@ do_enq_ndr_kern(char **buf, int size)
     cl_command_queue command_queue;
     cl_kernel kernel;
     int work_dim;
-    int global_work_size;
+    size_t global_work_size[10];
+    size_t local_work_size[10];
+    int tmp, tmp2;
     int num_events_in_wait_list;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiii", &command_queue, &kernel, &work_dim, 
-        &global_work_size, &num_events_in_wait_list);
+    int gws, lws;
+    stn = tpl_map("IIiiA(i)A(i)ii", &command_queue, &kernel, &work_dim, 
+        &gws, &lws, &num_events_in_wait_list, &tmp, &tmp2);
     rtn = tpl_map("i", &result);
 
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    size_t tmp = global_work_size;
+    int i = 0;
+    for (i = 0; i < work_dim; i++) {
+        tpl_unpack(stn, 1);
+        global_work_size[i] = gws;
+        printf("gws %d i %d\n", gws, i);
+    }
+
+    for (i = 0; i < work_dim; i++) {
+        tpl_unpack(stn, 2);
+        local_work_size[i] = lws;
+        printf("lws %d i %d\n", lws, i);
+    }
+
+    local_work_size[0] = tmp;
+    global_work_size[0] = tmp2;
+    printf("%d %d %d %d\n", global_work_size[0], global_work_size[1], 
+        local_work_size[0], local_work_size[1]);
     result = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL,
-        &tmp, NULL, 0, NULL, NULL);
+        global_work_size, local_work_size, num_events_in_wait_list, NULL, NULL);
 
     printf("enq_ndr result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -340,11 +361,11 @@ do_finish(char **buf, int size)
     printf("finish result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -367,11 +388,11 @@ do_flush(char **buf, int size)
     printf("flush result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -410,19 +431,19 @@ do_enq_map_buf(char **buf, int size)
         tpl_pack(rtn, 1);
     }
 
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
 
-    if (sz > BUFSIZE - H_OFFSET) {
-        printf("malloc size %d\n", sz + H_OFFSET);
-        tmp_buf = malloc(sz + H_OFFSET);
+    if (gsz > BUFSIZE - H_OFFSET) {
+        printf("malloc size %d\n", gsz + H_OFFSET);
+        tmp_buf = malloc(gsz + H_OFFSET);
         memcpy(tmp_buf, *buf, H_OFFSET);
         *buf = tmp_buf;
     }
 
-    tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, sz);
+    tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, gsz);
     free(buff);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -461,19 +482,19 @@ do_enq_read_buf(char **buf, int size)
         tpl_pack(rtn, 1);
     }
 
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
 
-    if (sz > BUFSIZE - H_OFFSET) {
-        printf("malloc size %d\n", sz + H_OFFSET);
-        tmp_buf = malloc(sz + H_OFFSET);
+    if (gsz > BUFSIZE - H_OFFSET) {
+        printf("malloc size %d\n", gsz + H_OFFSET);
+        tmp_buf = malloc(gsz + H_OFFSET);
         memcpy(tmp_buf, *buf, H_OFFSET);
         *buf = tmp_buf;
     }
 
-    tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, sz);
+    tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, gsz);
     free(buff);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -513,12 +534,12 @@ do_enq_write_buf(char **buf, int size)
     printf("write buffer result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
     //free(buff);
-    return sz;
+    return gsz;
 }
 
 static int
@@ -539,11 +560,11 @@ do_release_mem(char **buf, int size)
     printf("release_mem result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -564,11 +585,11 @@ do_release_prog(char **buf, int size)
     printf("release prog result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -589,11 +610,11 @@ do_release_kern(char **buf, int size)
     printf("release_kern result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -614,11 +635,11 @@ do_release_cqueue(char **buf, int size)
     printf("release_cqueue result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 static int
@@ -639,11 +660,11 @@ do_release_ctx(char **buf, int size)
     printf("release_ctx result %d\n", result);
 
     tpl_pack(rtn, 0);
-    tpl_dump(rtn, TPL_GETSIZE, &sz);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
         size - H_OFFSET);
 
-    return sz;
+    return gsz;
 }
 
 int
