@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#include <zlib.h>
 
 #include <CL/cl.h>
 
@@ -305,7 +306,7 @@ tpl_deserialize_array(tpl_node *stn, tpl_node *rtn, int cb, char *c, char *buf)
         free(_big_buf);
     }
 
-    return 0;
+    return i;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -660,8 +661,21 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
         &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
+    int i, len = cb;
+
     cb = tpl_rpc_call(stn, rtn);
-    tpl_deserialize_array(stn, rtn, cb, &c, buf);
+
+    if (len > 512) {
+        buf = (char *)calloc(sizeof(char), cb);
+    }
+
+    i = tpl_deserialize_array(stn, rtn, cb, &c, buf);
+
+    if (len > 512) {
+        int err;
+        err = uncompress(ptr, &len, buf, i);
+        printf("cb %d i %d len %d\n", cb, i, len);
+    }
 
     return result;
 }
@@ -687,11 +701,20 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
         &offset, &cb, &num_events_in_wait_list, &c);
     rtn = tpl_map("i", &result);
 
-    int i;
-    for (i = 0; i < cb; i++) {
+    uLongf i, len;
+    int err;
+    if (cb > 512) {
+        len = (uLongf)(cb + (cb * 0.1) + 12);
+        buf = (char *)malloc((size_t)len);
+        err = compress2((Bytef *)buf, &len, (const Bytef *)ptr, (uLongf)cb, 
+                           Z_BEST_COMPRESSION);
+    }
+
+    for (i = 0; i < len; i++) {
         c = buf[i];
         tpl_pack(stn, 1);
     }
+    printf("cb %d len %lu i %lu err %d\n", cb, len, i, err);
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);

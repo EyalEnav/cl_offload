@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <CL/cl.h>
+#include <zlib.h>
 
 #include "tpl.h"
 #include "and_rpc.h"
@@ -476,11 +477,22 @@ do_enq_read_buf(char **buf, int size)
                                           NULL, NULL);
 
     tpl_pack(rtn, 0);
-    int i;
-    for (i = 0; i < cb; i++) {
+
+    uLongf i, len;
+    int err;
+    if (cb > 512) {
+        len = (uLongf)(cb + (cb * 0.1) + 12);
+        tmp_buf = (char *)malloc((size_t)len);
+        err = compress2((Bytef *)tmp_buf, &len, (const Bytef *)buff, (uLongf)cb, 
+                           Z_BEST_COMPRESSION);
+        buff = tmp_buf;
+    }
+
+    for (i = 0; i < len; i++) {
         c = buff[i];
         tpl_pack(rtn, 1);
     }
+    printf("cb %d len %lu i %lu err %d\n", cb, len, i, err);
 
     tpl_dump(rtn, TPL_GETSIZE, &gsz);
 
@@ -519,12 +531,19 @@ do_enq_write_buf(char **buf, int size)
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    buff = malloc(cb);
+    buff = calloc(sizeof(char),cb);
 
     int i = 0;
     while (tpl_unpack(stn, 1) > 0) {
         buff[i] = c;
         i++;
+    }
+
+    if (cb > 512) {
+        int err, len = cb;
+        char *tmp_buf = (char *)calloc(sizeof(char), len);
+        err = uncompress(tmp_buf, &len, buff, i);
+        buff = tmp_buf;
     }
 
     result = clEnqueueWriteBuffer( command_queue, buffer, blocking_write, offset,
