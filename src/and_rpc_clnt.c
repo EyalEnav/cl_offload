@@ -661,7 +661,7 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
         &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
-    int i, len = cb;
+    uLongf i, len = cb;
 
     cb = tpl_rpc_call(stn, rtn);
 
@@ -673,8 +673,8 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
 
     if (len > 512) {
         int err;
-        err = uncompress(ptr, &len, buf, i);
-        printf("cb %d i %d len %d\n", cb, i, len);
+        err = uncompress((Bytef *)ptr, &len, (Bytef *)buf, i);
+        printf("cb %d i %lu len %lu\n", cb, i, len);
     }
 
     return result;

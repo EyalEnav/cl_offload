@@ -533,16 +533,16 @@ do_enq_write_buf(char **buf, int size)
 
     buff = calloc(sizeof(char),cb);
 
-    int i = 0;
+    uLongf i = 0;
     while (tpl_unpack(stn, 1) > 0) {
         buff[i] = c;
         i++;
     }
 
     if (cb > 512) {
-        int err, len = cb;
+        uLongf err, len = cb;
         char *tmp_buf = (char *)calloc(sizeof(char), len);
-        err = uncompress(tmp_buf, &len, buff, i);
+        err = uncompress((Bytef *)tmp_buf, &len, (Bytef *)buff, i);
         buff = tmp_buf;
     }
 
