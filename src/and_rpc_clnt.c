@@ -797,6 +797,31 @@ cl_int clReleaseContext (cl_context context)
     return result;
 }
 
+cl_int clEnqueueCopyBuffer (cl_command_queue command_queue,
+                            cl_mem src_buffer,
+                            cl_mem dst_buffer,
+                            size_t src_offset,
+                            size_t dst_offset,
+                            size_t cb,
+                            cl_uint num_events_in_wait_list,
+                            const cl_event *event_wait_list,
+                            cl_event *event)
+{
+    printf("doing enqcopybuf\n");
+    int result;
+    _buf[M_IDX] = ENQ_COPY_BUF;
+    tpl_node *stn, *rtn;
+
+    stn = tpl_map("IIIiiii", command_queue, src_buffer, dst_buffer,
+        &src_offset, &dst_offset, &cb, &num_events_in_wait_list);
+    rtn = tpl_map("i", &result);
+
+    tpl_rpc_call(stn, rtn);
+    tpl_deserialize(stn, rtn);
+
+    return result;
+}
+
 int 
 init_rpc(const char *ip)
 {

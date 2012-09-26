@@ -23,6 +23,7 @@
 #define RELEASE_CQUEUE 19
 #define RELEASE_CTX 20
 #define FLUSH 21
+#define ENQ_COPY_BUF 22
 
 #define MCAST_ADDR "239.192.1.100"
 #define M_IDX 4

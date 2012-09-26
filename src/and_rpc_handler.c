@@ -686,6 +686,36 @@ do_release_ctx(char **buf, int size)
     return gsz;
 }
 
+static int
+do_enq_copy_buf(char **buf, int size)
+{
+    int result, sz;
+    cl_command_queue command_queue;
+    cl_mem src_buffer, dst_buffer;
+    int src_offset, dst_offset, cb;
+    int num_events_in_wait_list;
+    tpl_node *stn, *rtn;
+
+    stn = tpl_map("IIIiiii", &command_queue, &src_buffer, &dst_buffer,
+        &src_offset, &dst_offset, &cb, &num_events_in_wait_list);
+    rtn = tpl_map("i", &result);
+
+    tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
+        size - H_OFFSET);
+    tpl_unpack(stn, 0);
+
+    result = clEnqueueCopyBuffer(command_queue, src_buffer, dst_buffer,
+        src_offset, dst_offset, cb, num_events_in_wait_list, NULL, NULL);
+    printf("enqueuecopybuffer result %d\n", result);
+
+    tpl_pack(rtn, 0);
+    tpl_dump(rtn, TPL_GETSIZE, &gsz);
+    tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
+        size - H_OFFSET);
+
+    return gsz;
+}
+
 int
 process_request(char **buf, int nread, int size)
 {
@@ -773,6 +803,10 @@ process_request(char **buf, int nread, int size)
 
     case FLUSH:
         sz = do_flush(buf, len);
+        break;
+
+    case ENQ_COPY_BUF:
+        sz = do_enq_copy_buf(buf, len);
         break;
 
     default:
