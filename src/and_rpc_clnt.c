@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <zlib.h>
+#include <inttypes.h>
 
 #include <CL/cl.h>
 
@@ -16,13 +17,12 @@
 
 #define BUFSIZE 1024
 
-int tcp_sock = -1;
-char _buf[BUFSIZE];
-char *_big_buf;
+static int tcp_sock = -1;
+static char _buf[BUFSIZE];
+static char *_big_buf;
 
-typedef long long int int64;
-
-static struct timeval TIMEOUT = { 25, 0 };
+static int64_t mem_ptrs[20] = { 0 };
+static int mem_idx = 0;
 
 static double
 sub_timeval(const struct timeval *t1, const struct timeval *t2)
@@ -319,7 +319,7 @@ cl_int clGetPlatformIDs (cl_uint num_entries,
 {
     printf("doing getplatformid\n");
     int result;
-    int64 *platforms_l = malloc(sizeof(int64));
+    int64_t *platforms_l = mem_ptrs + mem_idx++;
     *platforms = platforms_l;
 
     _buf[M_IDX] = GET_PLAT_ID;
@@ -342,7 +342,7 @@ cl_int clGetDeviceIDs (cl_platform_id platform,
 {
     printf("doing getdeviceid\n");
     int result;
-    int64 *devices_l = malloc(sizeof(int64));
+    int64_t *devices_l = mem_ptrs + mem_idx++;
     *devices = devices_l;
     _buf[M_IDX] = GET_DEV_ID;
     tpl_node *stn, *rtn;
@@ -366,7 +366,7 @@ cl_context clCreateContext (const cl_context_properties *properties,
                             cl_int *errcode_ret)
 {
     printf("doing createcontext\n");
-    int64 *context_l = malloc(sizeof(int64));
+    int64_t *context_l = mem_ptrs + mem_idx++;
     _buf[M_IDX] = CREATE_CTX;
     tpl_node *stn, *rtn;
 
@@ -389,7 +389,7 @@ cl_command_queue clCreateCommandQueue (cl_context context,
                                    cl_int *errcode_ret)
 {
     printf("doing createcommandqueue\n");
-    int64 *queue_l = malloc(sizeof(int64));
+    int64_t *queue_l = mem_ptrs + mem_idx++;
     _buf[M_IDX] = CREATE_CQUEUE;
     tpl_node *stn, *rtn;
 
@@ -413,7 +413,7 @@ cl_program clCreateProgramWithSource (cl_context context,
                                       cl_int *errcode_ret)
 {
     printf("doing createprogramwithsource\n");
-    int64 *program_l = malloc(sizeof(int64));
+    int64_t *program_l = mem_ptrs + mem_idx++;
     _buf[M_IDX] = CREATE_PROG_WS;
     tpl_node *stn, *rtn;
 
@@ -441,7 +441,7 @@ cl_int clBuildProgram (cl_program program,
                        void *user_data)
 {
     printf("doing build program\n");
-    int64 *ptr = NULL;
+    int64_t *ptr = NULL;
     int result;
     _buf[M_IDX] = BUILD_PROG;
     tpl_node *stn, *rtn;
@@ -466,7 +466,7 @@ cl_kernel clCreateKernel (cl_program program,
                           cl_int *errcode_ret)
 {
     printf("doing createkernel\n");
-    int64 *kernel_l = malloc(sizeof(int64));
+    int64_t *kernel_l = mem_ptrs + mem_idx++;
     _buf[M_IDX] = CREATE_KERN;
     tpl_node *stn, *rtn;
 
@@ -490,11 +490,12 @@ cl_mem clCreateBuffer (cl_context context,
                       cl_int *errcode_ret)
 {
     printf("doing createbuffer\n");
-    int64 *buffer_l = malloc(sizeof(int64));
+    int64_t *buffer_l = mem_ptrs + mem_idx++;
+    uint64_t l_size = size;
     _buf[M_IDX] = CREATE_BUF;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("Iii", context, &flags, &size);
+    stn = tpl_map("IiI", context, &flags, &l_size);
     rtn = tpl_map("I", buffer_l);
 
     tpl_rpc_call(stn, rtn);
@@ -513,21 +514,26 @@ cl_int clSetKernelArg (cl_kernel kernel,
                        const void *arg_value)
 {
     printf("doing setkernelarg\n");
-    int64 *ptr = NULL;
+    int64_t *ptr = NULL;
+    uint64_t l_size = arg_size;
+
     int result;
     _buf[M_IDX] = SET_KERN_ARG;
     tpl_node *stn, *rtn;
 
     if (arg_value == NULL) {
-        stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, &ptr);
-    }
-    else if (arg_size == 1001 || arg_size == 1002 || arg_size == 1003) {
-        stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, arg_value);
+        stn = tpl_map("IiII", kernel, &arg_index, &l_size, &ptr);
     }
     else {
-        int64 *tmp = (int64 *)arg_value;
-        arg_size = 8;
-        stn = tpl_map("IiiI", kernel, &arg_index, &arg_size, *tmp);
+        int64_t **tmp = (int64_t **)arg_value;
+        if (*tmp >= mem_ptrs && *tmp < mem_ptrs + 20) {
+            printf("found cl memory %p\n", *tmp);
+            stn = tpl_map("IiII", kernel, &arg_index, &l_size, *tmp);
+        }
+        else {
+            printf("copying value %p\n", *tmp);
+            stn = tpl_map("IiII", kernel, &arg_index, &l_size, arg_value);
+        }
     }
 
     rtn = tpl_map("i", &result);
@@ -554,25 +560,46 @@ cl_int clEnqueueNDRangeKernel (cl_command_queue command_queue,
     _buf[M_IDX] = ENQ_NDR_KERN;
     tpl_node *stn, *rtn;
 
-    int gws, lws, tmp, tmp2;
-    stn = tpl_map("IIiiA(i)A(i)ii", command_queue, kernel, &work_dim, 
-        &gws, &lws, &num_events_in_wait_list, &tmp, &tmp2);
+    uint64_t gwo, gws, lws;
+    stn = tpl_map("IIiiA(U)A(U)A(U)", command_queue, kernel, &work_dim, 
+        &num_events_in_wait_list, &gwo, &gws, &lws);
     rtn = tpl_map("i", &result);
 
     int i;
+
     for (i = 0; i < work_dim; i++) {
-        lws = local_work_size[i];
-        tpl_pack(stn, 2);
-        printf("lws %d i %d\n", lws, i);
+        if (global_work_offset == NULL) {
+            gwo = 0;
+        }
+        else {
+            gwo = global_work_offset[i];
+        }
+        tpl_pack(stn, 1);
+        printf("gwo %d i %d\n", gwo, i);
     }
 
     for (i = 0; i < work_dim; i++) {
         gws = global_work_size[i];
-        tpl_pack(stn, 1);
+        if (global_work_size == NULL) {
+            gws = 0;
+        }
+        else {
+            gws = global_work_size[i];
+        }
+        tpl_pack(stn, 2);
         printf("gws %d i %d\n", gws, i);
     }
-    tmp = local_work_size[0];
-    tmp2 = global_work_size[0];
+
+    for (i = 0; i < work_dim; i++) {
+        if (local_work_size == NULL) {
+            lws = 0;
+        }
+        else {
+            lws = local_work_size[i];
+        }
+        tpl_pack(stn, 3);
+        printf("lws %d i %d\n", lws, i);
+    }
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);
@@ -701,7 +728,7 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
         &offset, &cb, &num_events_in_wait_list, &c);
     rtn = tpl_map("i", &result);
 
-    uLongf i, len;
+    uLongf i, len = cb;
     int err;
     if (cb > 512) {
         len = (uLongf)(cb + (cb * 0.1) + 12);

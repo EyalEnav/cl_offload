@@ -1,25 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <CL/cl.h>
-#include <sys/stat.h>
 
+#include "and_rpc_utils.h"
 #include "and_rpc_clnt.h"
-
-static char *load_program_source(const char *filename)
-{
-    struct stat statbuf;
-    FILE *fh;
-    char *source;
-
-    fh = fopen(filename, "r");
-    if (fh == 0) return 0;
-
-    stat(filename, &statbuf);
-    source = (char *) malloc(statbuf.st_size + 1);
-    fread(source, statbuf.st_size, 1, fh);
-    source[statbuf.st_size] = '\0';
-    return source;
-}
 
 int main(int argc, char *argv[])
 {
@@ -105,16 +89,16 @@ int main(int argc, char *argv[])
            sizeof(cl_uchar4)), NULL);
     printf("err %d\n", err);
 
-    err = clSetKernelArg(kernel, 3, 1001, (void*)&iLocalPixPitch);
+    err = clSetKernelArg(kernel, 3, sizeof(cl_int), (void*)&iLocalPixPitch);
     printf("err %d\n", err);
 
-    err = clSetKernelArg(kernel, 4, 1002, (void*)&img_width);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_uint), (void*)&img_width);
     printf("err %d\n", err);
 
-    err = clSetKernelArg(kernel, 5, 1002, (void*)&img_height);
+    err = clSetKernelArg(kernel, 5, sizeof(cl_uint), (void*)&img_height);
     printf("err %d\n", err);
 
-    err = clSetKernelArg(kernel, 6, 1003, (void*)&fThresh);
+    err = clSetKernelArg(kernel, 6, sizeof(float), (void*)&fThresh);
     printf("err %d\n", err);
 
 

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <CL/cl.h>
 #include <zlib.h>
+#include <inttypes.h>
 
 #include "tpl.h"
 #include "and_rpc.h"
@@ -176,6 +177,21 @@ do_build_prog(char **buf, int size)
     }
     printf("build_prog result %d\n", result);
 
+    /*
+    if (result == CL_BUILD_PROGRAM_FAILURE) {
+        printf(" prog fail\n");
+    }
+    else if (result == CL_INVALID_OPERATION) {
+        printf(" inv op\n");
+    }
+
+    char tmp[102400];
+    clGetProgramBuildInfo(program, device_list, CL_PROGRAM_BUILD_LOG, sizeof(tmp),
+        tmp, NULL);
+
+    printf("error %s\n", tmp);
+    */
+
     tpl_pack(rtn, 0);
     tpl_dump(rtn, TPL_GETSIZE, &gsz);
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, 
@@ -217,18 +233,18 @@ do_create_buf(char **buf, int size)
     int sz;
     cl_context context;
     cl_mem_flags flags;
-    int len;
+    uint64_t l_size;
     cl_mem buffer;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("Iii", &context, &flags, &len);
+    stn = tpl_map("IiI", &context, &flags, &l_size);
     rtn = tpl_map("I", &buffer);
 
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    buffer = clCreateBuffer(context, flags, len, NULL, NULL);
+    buffer = clCreateBuffer(context, flags, l_size, NULL, NULL);
     printf("buffer %p\n", buffer);
 
     tpl_pack(rtn, 0);
@@ -245,37 +261,23 @@ do_set_kern_arg(char **buf, int size)
     int result, sz;
     cl_kernel kernel;
     int arg_index;
-    int arg_size;
-    unsigned long long int arg_value;
+    uint64_t arg_size;
+    uint64_t arg_value;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IiiI", &kernel, &arg_index, &arg_size, &arg_value);
+    stn = tpl_map("IiII", &kernel, &arg_index, &arg_size, &arg_value);
     rtn = tpl_map("i", &result);
 
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    printf("kernel %p arg_idx %d arg_size %d arg_val %p\n", 
+    printf("kernel %p arg_idx %d arg_size %lu arg_val %p\n", 
             kernel, arg_index, arg_size, arg_value);
 
     if (arg_value == NULL || arg_value == 0x900300000000) {
-        printf("doing null\n");
+        printf("doing null arg_size %d\n", arg_size);
         result = clSetKernelArg(kernel, arg_index, arg_size, NULL);
-    }
-    else if (arg_size == 1001) {
-        cl_int tmp = 18;
-        result = clSetKernelArg(kernel, arg_index, sizeof(cl_int), &tmp);
-    }
-    else if (arg_size == 1002) {
-        printf("arg_value %d\n", arg_value);
-        cl_uint tmp = arg_value;
-        result = clSetKernelArg(kernel, arg_index, sizeof(cl_uint), &tmp);
-    }
-    else if (arg_size == 1003) {
-        float tmp = 80.0f;
-        arg_size = sizeof(cl_float);
-        result = clSetKernelArg(kernel, arg_index, arg_size, &tmp);
     }
     else {
         result = clSetKernelArg(kernel, arg_index, arg_size, &arg_value);
@@ -297,15 +299,17 @@ do_enq_ndr_kern(char **buf, int size)
     cl_command_queue command_queue;
     cl_kernel kernel;
     int work_dim;
+    size_t global_work_offset[10];
     size_t global_work_size[10];
     size_t local_work_size[10];
-    int tmp, tmp2;
+    size_t *gwo_ptr = global_work_offset, *lws_ptr = local_work_size;
+    size_t gwo_sum = 0, lws_sum = 0;
     int num_events_in_wait_list;
     tpl_node *stn, *rtn;
 
-    int gws, lws;
-    stn = tpl_map("IIiiA(i)A(i)ii", &command_queue, &kernel, &work_dim, 
-        &gws, &lws, &num_events_in_wait_list, &tmp, &tmp2);
+    uint64_t gwo, gws, lws;
+    stn = tpl_map("IIiiA(U)A(U)A(U)", &command_queue, &kernel, &work_dim, 
+        &num_events_in_wait_list, &gwo, &gws, &lws);
     rtn = tpl_map("i", &result);
 
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
@@ -315,22 +319,32 @@ do_enq_ndr_kern(char **buf, int size)
     int i = 0;
     for (i = 0; i < work_dim; i++) {
         tpl_unpack(stn, 1);
+        global_work_offset[i] = gwo;
+        gwo_sum += gwo;
+        printf("gwo %d i %d\n", gwo, i);
+    }
+
+    for (i = 0; i < work_dim; i++) {
+        tpl_unpack(stn, 2);
         global_work_size[i] = gws;
         printf("gws %d i %d\n", gws, i);
     }
 
     for (i = 0; i < work_dim; i++) {
-        tpl_unpack(stn, 2);
+        tpl_unpack(stn, 3);
         local_work_size[i] = lws;
+        lws_sum += lws;
         printf("lws %d i %d\n", lws, i);
     }
 
-    local_work_size[0] = tmp;
-    global_work_size[0] = tmp2;
-    printf("%d %d %d %d\n", global_work_size[0], global_work_size[1], 
-        local_work_size[0], local_work_size[1]);
-    result = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL,
-        global_work_size, local_work_size, num_events_in_wait_list, NULL, NULL);
+    if (gwo_sum == 0) gwo_ptr = NULL;
+    if (lws_sum == 0) lws_ptr = NULL;
+
+    printf("queue %p kernel %p work_dim %d num_events %d\n",
+        command_queue, kernel, work_dim, num_events_in_wait_list);
+
+    result = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, gwo_ptr,
+        global_work_size, lws_ptr, num_events_in_wait_list, NULL, NULL);
 
     printf("enq_ndr result %d\n", result);
 
@@ -442,7 +456,7 @@ do_enq_map_buf(char **buf, int size)
     }
 
     tpl_dump(rtn, TPL_MEM|TPL_PREALLOCD, (*buf) + H_OFFSET, gsz);
-    free(buff);
+    //free(buff);
 
     return gsz;
 }
