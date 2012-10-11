@@ -30,5 +30,9 @@
 #define H_OFFSET 5
 #define BUFSIZE 1024
 
+#define MAX(a, b) ((a > b) ? a : b)
+#define MIN(a, b) ((a < b) ? a : b)
+#define CLAMP(a, b, c) MIN(MAX(a, b), c)
+#define TOPCLAMP(a, b) (a < b ? a:b)
 
 #endif

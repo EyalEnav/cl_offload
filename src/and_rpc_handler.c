@@ -234,17 +234,40 @@ do_create_buf(char **buf, int size)
     cl_context context;
     cl_mem_flags flags;
     uint64_t l_size;
+    uint64_t ptr_sz;
+    char c;
+    char *buff;
     cl_mem buffer;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IiI", &context, &flags, &l_size);
+    stn = tpl_map("IiIIA(c)", &context, &flags, &l_size, &ptr_sz, &c);
     rtn = tpl_map("I", &buffer);
 
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    buffer = clCreateBuffer(context, flags, l_size, NULL, NULL);
+    if (ptr_sz > 0) {
+        size_t cb = ptr_sz;
+        buff = calloc(sizeof(char),cb);
+
+        uLongf i = 0;
+        while (tpl_unpack(stn, 1) > 0) {
+            buff[i] = c;
+            i++;
+        }
+
+        if (cb > 512) {
+            uLongf err, len = cb;
+            char *tmp_buf = (char *)calloc(sizeof(char), len);
+            err = uncompress((Bytef *)tmp_buf, &len, (Bytef *)buff, i);
+            buff = tmp_buf;
+        }
+        buffer = clCreateBuffer(context, flags, l_size, buff, NULL);
+    }
+    else {
+        buffer = clCreateBuffer(context, flags, l_size, NULL, NULL);
+    }
     printf("buffer %p\n", buffer);
 
     tpl_pack(rtn, 0);

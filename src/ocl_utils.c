@@ -197,6 +197,15 @@ size_t shrRoundUp(int group_size, int global_size)
     }
 }
 
+void shrFillArray(float* data, int size)
+{
+    int i;
+    const float scale = 1.0f / (float)RAND_MAX;
+    for (i = 0; i < size; ++i) {
+        data[i] = scale * rand();
+    }
+}
+
 char *load_program_source(const char *filename)
 {
     struct stat statbuf;

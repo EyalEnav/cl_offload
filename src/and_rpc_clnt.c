@@ -492,11 +492,32 @@ cl_mem clCreateBuffer (cl_context context,
     printf("doing createbuffer\n");
     int64_t *buffer_l = mem_ptrs + mem_idx++;
     uint64_t l_size = size;
+    uint64_t ptr_sz = 0;
+    char c;
+    char *buf;
+    size_t cb = size;
     _buf[M_IDX] = CREATE_BUF;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IiI", context, &flags, &l_size);
+    stn = tpl_map("IiIIA(c)", context, &flags, &l_size, &ptr_sz, &c);
     rtn = tpl_map("I", buffer_l);
+
+    if (host_ptr != NULL) {
+        uLongf i, len = cb;
+        int err;
+        if (cb > 512) {
+            len = (uLongf)(cb + (cb * 0.1) + 12);
+            buf = (char *)malloc((size_t)len);
+            err = compress2((Bytef *)buf, &len, (const Bytef *)host_ptr, (uLongf)cb, 
+                           Z_BEST_COMPRESSION);
+        }
+
+        for (i = 0; i < len; i++) {
+            c = buf[i];
+            tpl_pack(stn, 1);
+        }
+        ptr_sz = size;
+    }
 
     tpl_rpc_call(stn, rtn);
     tpl_deserialize(stn, rtn);

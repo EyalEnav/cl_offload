@@ -2,7 +2,7 @@
 #include <string.h>
 #include <CL/cl.h>
 
-#include "and_rpc_utils.h"
+#include "ocl_utils.h"
 #include "and_rpc_clnt.h"
 
 int main(int argc, char *argv[])
