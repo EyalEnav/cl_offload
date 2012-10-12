@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <CL/cl.h>
 
 #include "ocl_utils.h"
