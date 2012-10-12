@@ -5,6 +5,8 @@
 
 #include <CL/cl.h>
 
+#include "ocl_utils.h"
+
 #define BLOCK_SIZE 16                  
                                                                                  
 #define WA (5 * BLOCK_SIZE) // Matrix A width                   
@@ -146,6 +148,4 @@ int main(int argc, char *argv[])
     clReleaseKernel(kernel);
     clReleaseCommandQueue(queue);
     clReleaseProgram(program);
-    clReleaseKernel(kernel);
-    clReleaseCommandQueue(queue);
 }

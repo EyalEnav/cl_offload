@@ -29,6 +29,7 @@
 #define M_IDX 4
 #define H_OFFSET 5
 #define BUFSIZE 1024
+#define CMP_LIM 256
 
 #define MAX(a, b) ((a > b) ? a : b)
 #define MIN(a, b) ((a < b) ? a : b)

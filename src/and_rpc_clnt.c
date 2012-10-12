@@ -15,7 +15,6 @@
 #include "and_rpc_clnt.h"
 #include "and_rpc.h"
 
-#define BUFSIZE 1024
 
 static int tcp_sock = -1;
 static char _buf[BUFSIZE];
@@ -505,7 +504,7 @@ cl_mem clCreateBuffer (cl_context context,
     if (host_ptr != NULL) {
         uLongf i, len = cb;
         int err;
-        if (cb > 512) {
+        if (cb > CMP_LIM) {
             len = (uLongf)(cb + (cb * 0.1) + 12);
             buf = (char *)malloc((size_t)len);
             err = compress2((Bytef *)buf, &len, (const Bytef *)host_ptr, (uLongf)cb, 
@@ -713,13 +712,13 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
 
     cb = tpl_rpc_call(stn, rtn);
 
-    if (len > 512) {
+    if (len > CMP_LIM) {
         buf = (char *)calloc(sizeof(char), cb);
     }
 
     i = tpl_deserialize_array(stn, rtn, cb, &c, buf);
 
-    if (len > 512) {
+    if (len > CMP_LIM) {
         int err;
         err = uncompress((Bytef *)ptr, &len, (Bytef *)buf, i);
         printf("cb %d i %lu len %lu\n", cb, i, len);
@@ -751,7 +750,7 @@ cl_int clEnqueueWriteBuffer (cl_command_queue command_queue,
 
     uLongf i, len = cb;
     int err;
-    if (cb > 512) {
+    if (cb > CMP_LIM) {
         len = (uLongf)(cb + (cb * 0.1) + 12);
         buf = (char *)malloc((size_t)len);
         err = compress2((Bytef *)buf, &len, (const Bytef *)ptr, (uLongf)cb, 

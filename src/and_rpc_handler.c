@@ -257,7 +257,7 @@ do_create_buf(char **buf, int size)
             i++;
         }
 
-        if (cb > 512) {
+        if (cb > CMP_LIM) {
             uLongf err, len = cb;
             char *tmp_buf = (char *)calloc(sizeof(char), len);
             err = uncompress((Bytef *)tmp_buf, &len, (Bytef *)buff, i);
@@ -457,7 +457,7 @@ do_enq_map_buf(char **buf, int size)
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    int tmp = 512;
+    int tmp = CMP_LIM;
     buff = (char *) clEnqueueMapBuffer( command_queue, buffer, blocking_map, map_flags,
                                         offset, cb, num_events_in_wait_list, 
                                         NULL, NULL, NULL);
@@ -508,7 +508,7 @@ do_enq_read_buf(char **buf, int size)
     tpl_unpack(stn, 0);
 
     buff = malloc(cb);
-    int tmp = 512;
+    int tmp = CMP_LIM;
     result = clEnqueueReadBuffer( command_queue, buffer, blocking_read, offset,
                                           cb, buff, num_events_in_wait_list,
                                           NULL, NULL);
@@ -516,8 +516,8 @@ do_enq_read_buf(char **buf, int size)
     tpl_pack(rtn, 0);
 
     uLongf i, len;
-    int err;
-    if (cb > 512) {
+    int err = 0;
+    if (cb > CMP_LIM) {
         len = (uLongf)(cb + (cb * 0.1) + 12);
         tmp_buf = (char *)malloc((size_t)len);
         err = compress2((Bytef *)tmp_buf, &len, (const Bytef *)buff, (uLongf)cb, 
@@ -576,7 +576,7 @@ do_enq_write_buf(char **buf, int size)
         i++;
     }
 
-    if (cb > 512) {
+    if (cb > CMP_LIM) {
         uLongf err, len = cb;
         char *tmp_buf = (char *)calloc(sizeof(char), len);
         err = uncompress((Bytef *)tmp_buf, &len, (Bytef *)buff, i);
