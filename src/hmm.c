@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     cl_mem d_max_prob_new, d_path, v_prob, v_path;
 
     int wg_size = 256;
-    int n_state = 256*16;
+    int n_state = 256*1;
     int n_emit = 128;
     int n_obs = 100;
 

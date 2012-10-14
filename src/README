@@ -1,7 +1,7 @@
 
 compile client
 
-gcc and_rpc_clnt.c tpl.c sobel.c -I /opt/AMDAPP/include -lz -o client
+gcc and_rpc_clnt.c tpl.c ocl_utils.c sobel.c -I /opt/AMDAPP/include -lz -o client
 
 compile server
 

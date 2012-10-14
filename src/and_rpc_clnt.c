@@ -440,7 +440,7 @@ cl_int clBuildProgram (cl_program program,
                        void *user_data)
 {
     printf("doing build program\n");
-    int64_t *ptr = NULL;
+    int64_t ptr = 0;
     int result;
     _buf[M_IDX] = BUILD_PROG;
     tpl_node *stn, *rtn;
@@ -534,7 +534,7 @@ cl_int clSetKernelArg (cl_kernel kernel,
                        const void *arg_value)
 {
     printf("doing setkernelarg\n");
-    int64_t *ptr = NULL;
+    int64_t ptr = 0;
     uint64_t l_size = arg_size;
 
     int result;
@@ -547,6 +547,7 @@ cl_int clSetKernelArg (cl_kernel kernel,
     else {
         int64_t **tmp = (int64_t **)arg_value;
         if (*tmp >= mem_ptrs && *tmp < mem_ptrs + 20) {
+            l_size = 8;
             printf("found cl memory %p\n", *tmp);
             stn = tpl_map("IiII", kernel, &arg_index, &l_size, *tmp);
         }

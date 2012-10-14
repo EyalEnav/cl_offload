@@ -12,6 +12,6 @@ LOCAL_LDLIBS := -lz
 LOCAL_SRC_FILES := ../../../src/and_rpc_clnt.c \
                    ../../../src/tpl.c \
                    ../../../src/ocl_utils.c \
-                   ../../../src/hmm.c
+                   ../../../src/dct.c
 
 include $(BUILD_EXECUTABLE)

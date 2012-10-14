@@ -1,10 +1,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <CL/cl.h>
 #include <math.h>
-
-#include "ocl_utils.h"
+#include <stdlib.h>
 
 #define BLOCK_SIZE 8
 

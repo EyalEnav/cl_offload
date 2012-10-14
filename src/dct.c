@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <CL/cl.h>
+#include <stdlib.h>
 
 #include "ocl_utils.h"
 #include "and_rpc_clnt.h"
