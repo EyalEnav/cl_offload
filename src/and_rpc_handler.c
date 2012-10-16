@@ -444,12 +444,12 @@ do_enq_map_buf(char **buf, int size)
     cl_mem buffer;
     cl_bool blocking_map;
     cl_map_flags map_flags;
-    int offset;
-    int cb;
+    uint64_t offset;
+    uint64_t cb;
     int num_events_in_wait_list;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiiii", &command_queue, &buffer, &blocking_map, 
+    stn = tpl_map("IIiiIIi", &command_queue, &buffer, &blocking_map, 
         &map_flags, &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
@@ -457,7 +457,6 @@ do_enq_map_buf(char **buf, int size)
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    int tmp = CMP_LIM;
     buff = (char *) clEnqueueMapBuffer( command_queue, buffer, blocking_map, map_flags,
                                         offset, cb, num_events_in_wait_list, 
                                         NULL, NULL, NULL);
@@ -494,12 +493,12 @@ do_enq_read_buf(char **buf, int size)
     cl_command_queue command_queue;
     cl_mem buffer;
     cl_bool blocking_read;
-    int offset;
-    int cb;
+    uint64_t offset;
+    uint64_t cb;
     int num_events_in_wait_list;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiii", &command_queue, &buffer, &blocking_read, 
+    stn = tpl_map("IIiIIi", &command_queue, &buffer, &blocking_read, 
         &offset, &cb, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
@@ -508,7 +507,6 @@ do_enq_read_buf(char **buf, int size)
     tpl_unpack(stn, 0);
 
     buff = malloc(cb);
-    int tmp = CMP_LIM;
     result = clEnqueueReadBuffer( command_queue, buffer, blocking_read, offset,
                                           cb, buff, num_events_in_wait_list,
                                           NULL, NULL);

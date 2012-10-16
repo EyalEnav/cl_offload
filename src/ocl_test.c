@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <CL/cl.h>
 
-#define NWITEMS 128
+#define NWITEMS 512
 
 const char *source = 
 "__kernel void memset( __global uint *dst )  \n"
@@ -12,6 +12,7 @@ const char *source =
 
 int main(int argc, char *argv[])
 {
+    init_rpc(argv[1]);
 
     cl_platform_id platform;
     clGetPlatformIDs( 1, &platform, NULL );

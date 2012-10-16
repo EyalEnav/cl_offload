@@ -674,12 +674,14 @@ void * clEnqueueMapBuffer (cl_command_queue command_queue,
     printf("doing enqmapbuffer\n\n");
     char *buf = malloc(cb);
     char c;
+    uint64_t l_offset = offset;
+    uint64_t l_size = cb;
     int result;
     _buf[M_IDX] = ENQ_MAP_BUF;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiiii", command_queue, buffer, &blocking_map, 
-        &map_flags, &offset, &cb, &num_events_in_wait_list);
+    stn = tpl_map("IIiiIIi", command_queue, buffer, &blocking_map, 
+        &map_flags, &l_offset, &l_size, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
     cb = tpl_rpc_call(stn, rtn);
@@ -701,12 +703,14 @@ cl_int clEnqueueReadBuffer (cl_command_queue command_queue,
     printf("doing read buffer\n");
     char *buf = ptr;
     char c;
+    uint64_t l_offset = offset;
+    uint64_t l_size = cb;
     int result;
     _buf[M_IDX] = ENQ_READ_BUF;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIiiii", command_queue, buffer, &blocking_read, 
-        &offset, &cb, &num_events_in_wait_list);
+    stn = tpl_map("IIiIIi", command_queue, buffer, &blocking_read, 
+        &l_offset, &l_size, &num_events_in_wait_list);
     rtn = tpl_map("iA(c)", &result, &c);
 
     uLongf i, len = cb;
