@@ -4,7 +4,7 @@
 
 #include "ocl_utils.h"
 
-int main(int argc, char argv[])
+int main(int argc, char *argv[])
 {
     cl_platform_id platform;
     cl_device_id device;

@@ -12,7 +12,7 @@ uint iDivUp(uint dividend, uint divisor){
     return dividend / divisor + (dividend % divisor != 0);
 }
 
-int main(int argc, char argv[])
+int main(int argc, char *argv[])
 {
     cl_platform_id platform;
     cl_device_id device;

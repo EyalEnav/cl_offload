@@ -127,7 +127,7 @@ uint iDivUp(uint dividend, uint divisor){
     return dividend / divisor + (dividend % divisor != 0);
 }
 
-int main(int argc, char argv[])
+int main(int argc, char *argv[])
 {
     uint sz = 2048 * 1;
     float *input, *output;
