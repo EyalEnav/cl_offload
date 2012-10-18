@@ -124,5 +124,7 @@ int main(int argc, char *argv[])
     clReleaseProgram(program);
     clReleaseKernel(kernel);
     clReleaseCommandQueue(queue);
-    
+
+    printf("sizeof %d\n", sizeof(cl_command_queue_properties));
+    printf("sizeof %d\n", sizeof(cl_context_properties));
 }

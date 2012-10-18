@@ -62,10 +62,11 @@ void quicksort(int list[],int m,int n)
 int main(int argc, char *argv[])
 {
     size_t i;
-    int scale = 8; // scale should be higher than 8
+    int scale = atoi(argv[1]); // scale should be higher than 8
     size_t array_size = powl(2, scale) * 4;
     int *input = (int *) malloc(sizeof(int) * array_size);
     int *output = (int *) malloc(sizeof(int) * array_size);
+    printf("size %lu\n", array_size * sizeof(int)/(1024*1024));
 
     int dir = 1;
     int no_stages = 0;
@@ -74,6 +75,7 @@ int main(int argc, char *argv[])
     generateInput(input, array_size);
     quicksort(input, 0, array_size-1);
 
+    exit(0);
 
     for (i = 0; i < array_size; i++) {
         printf("%i %i\n", i, input[i]);

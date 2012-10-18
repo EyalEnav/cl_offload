@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     clGetPlatformIDs(1, &platform, NULL);
     printf("platform %p err %d\n", platform, err);
 
-    clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &device, &err);
+    clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, &err);
     printf("device %p err %d\n", device, err);
 
     context = clCreateContext(0, 1, &device, NULL, NULL, &err);

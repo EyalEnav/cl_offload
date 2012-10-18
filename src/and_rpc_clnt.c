@@ -392,7 +392,7 @@ cl_command_queue clCreateCommandQueue (cl_context context,
     _buf[M_IDX] = CREATE_CQUEUE;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIi", context, device, &properties);
+    stn = tpl_map("II", context, device);
     rtn = tpl_map("I", queue_l);
 
     tpl_rpc_call(stn, rtn);

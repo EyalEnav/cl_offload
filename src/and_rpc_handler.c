@@ -97,18 +97,17 @@ do_create_cqueue(char **buf, int size)
     int sz;
     cl_context context;
     cl_device_id device;
-    cl_command_queue_properties properties;
     cl_command_queue queue;
     tpl_node *stn, *rtn;
 
-    stn = tpl_map("IIi", &context, &device, &properties);
+    stn = tpl_map("II", &context, &device);
     rtn = tpl_map("I", &queue);
 
     tpl_load(stn, TPL_MEM|TPL_EXCESS_OK, (*buf) + H_OFFSET, 
         size - H_OFFSET);
     tpl_unpack(stn, 0);
 
-    queue = clCreateCommandQueue(context, device, properties, NULL);
+    queue = clCreateCommandQueue(context, device, 0, NULL);
     printf("queue %p\n", queue);
 
     tpl_pack(rtn, 0);
